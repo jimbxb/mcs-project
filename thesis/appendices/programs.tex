@@ -1,0 +1,61 @@
+\clearpage
+
+\def\chaptertitle{Evaluation Programs}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{apx:programs}
+
+\newcommand{\programlistings}[3]{
+  \StrSubstitute{#1}{ }{-}[\proglabel]
+
+  \section{#1}
+  \label{apx:programs-\proglabel}
+
+  {#3}
+
+  \foreach \order in {first, higher} {
+    \lstinputlisting[
+      caption={The \order{}-order implementation of the #1 program.},
+      label={lst:prog-\order-\proglabel}
+    ]{programs/\order/#2.wybe}
+  }
+  \clearpage
+}
+
+\programlistings{Fibs}{fibs}{
+  The \textit{Fibs} program na\"ively calculates the sum of the first $n$ Fibonacci numbers, for each input $n$, printing each result. The partial sums are stored in a resource.
+  
+  This program has a high computational complexity, however, this complexity is not placed in the higher-order component of this program, and instead in the higher-order term the \texttt{range} is \texttt{fold}ed over. 
+}
+
+\programlistings{Knapsack}{knapsack}{
+  The \textit{Knapsack} program is a program that solves the 0-1 knapsack problem using dynamic programming. The program reports the solution to the problem over an arbitrary collection of items read as input. 
+  
+  The program uses a resource, \texttt{sack}, to store the previous row calculated for the solution, and progressively builds the matrix, row by row until fully populated. 
+}
+
+\programlistings{Mandlebrot}{mandlebrot}{
+  The \textit{Mandlebrot} program is a program that prints the Mandlebrot set, an object from mathematics that is the set of complex numbers. A complex number, $c$, is in the Mandlebrot set if and only if the critical point, 0, under iteration of the quadratic map $z_{n+1} = z_n ^ 2 + c$ is bounded. We approximate the Mandlebrot set by iterating a fixed number of times.
+
+  This program again has a high computational complexity, however, the computational complexity is due to a large number of iterations the quadratic map performs. The actual map itself is relatively computationally simple.
+}
+
+\programlistings{N Body}{n_body}{
+  The \textit{N Body} program is a program used to simulate the $N$ body problem. The $N$ body problem is a problem from computational physics and involves the simulation of a system of bodies in a gravitational space. Due to the complex nature of the system in simulation, the program approximates the system in discretised time steps. The program simulates this problem over a finite number of time steps on a subset of the planets in our solar system, orbiting the Sun.
+
+  This program has a high computational complexity. However, in this program, there is a balance between the number of higher-order calls performed and the complexity of the higher-order terms.
+}
+
+\programlistings{Sonar Sweep}{sonar_sweep}{
+  The \textit{Sonar Sweep} program is a program used to solve the problem of day 1 of the 2021 Advent of Code\footnote{The full problem can be found here: \url{https://adventofcode.com/2021/day/1}}. This program is given a list of integer depths and outputs the number of depths that when considered in successive pairs increase, generalised beyond that of the problem in the Advent of Code to an arbitrary distance between pairs of depths.
+
+  This program makes use of a resource to keep a count of the number of increasing depths that have been seen, updating this count many times.
+}
+
+\programlistings{Sort}{sort}{
+  The \textit{Sort} program implements a sorting procedure, defined over various types. In the first-order implementation, the sort program must be duplicated, as there is no mechanism to factor out the common component (\texttt{`<=`}, the procedure used to order values). This contrasts the higher-order implementation where the comparison predicate is a parameter of the \texttt{sort} and \texttt{merge} predicates.
+
+  The sorting algorithm chosen, the insertion sort, was chosen due to the relative inefficiency of the sorting algorithm. The purpose of the program is not to optimally sort the given input, however, to contrast the effects of higher-order code. As an insertion sort for an input of size $N$ performs $O(N^2)$ comparisons, this will perform a greater number of higher-order calls than that of a more efficient sort that may perform $O(N \log{N})$ comparisons. 
+}

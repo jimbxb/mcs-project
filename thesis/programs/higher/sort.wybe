@@ -1,0 +1,40 @@
+def sort(`<=`:{test}(X, X), xs:list(X), ?sorted:list(X)) {
+    ?sorted = []
+    for ?x in xs {
+        insert(`<=`, x, !sorted)
+    }
+}
+
+def insert(`<=`:{test}(X, X), x:X, !xs:list(X)) {
+    if { [?head | ?rest] = xs ::
+        if { x <= head :: 
+            ?xs = [x | xs]
+        | else ::
+            insert(`<=`, x, !rest)
+            ?xs = [head | rest]
+        }
+    | else :: 
+        ?xs = [x]
+    }
+}
+
+def read_sort_print(n:int, reader:{resource}(?X), 
+                    `<=`:{test}(X, X), printer:{resource}(X)) use !io {
+    ?xs = []
+    for ?i in 0..n {
+        !reader(?x)
+        ?xs = [x | xs]
+    }
+    for ?x in sort(`<=`, xs) {
+        !printer(x)
+        !print(", ")
+    }
+    !nl
+}
+
+!read(?n)
+!read(_:string) 
+!read_sort_print(n, read, char.`<=`, print)
+!read_sort_print(n, read, string.`<=`, print)
+!read_sort_print(n, read, float.`<=`, print)
+!read_sort_print(n, read, int.`<=`, print)

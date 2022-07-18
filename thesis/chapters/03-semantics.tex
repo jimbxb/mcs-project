@@ -1,0 +1,279 @@
+\clearpage
+
+\def\chaptertitle{Syntax and Semantics}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:semantics}
+
+This chapter introduces the semantics we wish to achieve with higher-order programming in Wybe. The extension aims to extend the semantics of the Wybe language naturally, closely emulating the original, first-order, semantics in the Wybe language. The syntax used in the extension to the Wybe language is also introduced.
+
+\section{Higher-Order Terms and Calls}
+\label{sec:ss-higher-order-terms}
+
+A higher-order call is a call to some procedure that is a higher-order term, \textit{i.e.}, a term with a higher-order type. In some languages, such as Prolog and Mercury, the syntax for higher-order calls is verbose, requiring additional procedures, \texttt{call/N}, to perform higher-order calls. For Wybe, we wish to keep the syntax concise and align with that of first-order calls, much like in many other languages, such as C and Python. Examples of the syntax of higher-order calls in Wybe can be found in \cref{lst:ss-higher-order-calls}. 
+
+For first-order calls, the call is made to a (possibly module-qualified) name, with a preceding \texttt{!} if the call either uses some resource or is non-pure. We continue this syntax with higher-order calls, requiring a preceding \texttt{!} if the term is resourceful or non-pure. A higher-order call cannot have a module-qualification, as variables have no module-qualification, existing only in the scope of a procedure.
+
+\begin{lstlisting}[
+  caption={Example higher-order calls in Wybe.},
+  label={lst:ss-higher-order-calls},
+  float=ht
+]
+def call_procedure(f:(int, ?int), x:int) use !io {
+    f(x, ?y)
+    !print(y)
+    !print(f(x)) # functional shorthand
+}
+
+def call_test(f:{test}(int), x:int) use !io {
+    if { f(x) :: 
+        !print("test succeeded")
+    | else :: 
+        !print("test failed")
+    }
+}
+\end{lstlisting}
+
+Each higher-order term has a higher-order type, which is a list of types and accompanying flows. A call to a higher-order term is correct if the type and flow of each argument is identical to that of the higher-order term's types and flows. 
+
+We encapsulate properties of a higher-order type with a set of modifiers, marking the purity, determinism, and resourcefulness (see \cref{sec:ss-higher-order-resources}) of the term. Higher-order calls to terms with these modifiers act as their first-order counterparts.
+
+\subsection{Anonymous Procedure Syntax}
+\label{ssec:anon-proc}
+
+In most languages that support higher-order programming, the language provides a syntax that defines a procedure or function inline. These are commonly referred to as anonymous functions or lambda functions.
+
+The syntax we describe for Wybe is different from that of typical anonymous procedures or functions. This syntax closely emulates the syntax of a procedure definition, however, occurs without an explicit name as a regular procedure declaration would appear, and occurs inline as an expression. This expression is a sequence of several statements composed within braces (\{ \dots \}).
+
+Unlike typical anonymous functions, as seen in languages such as Haskell or Java, the syntax we define for the Wybe language lacks explicit names for the inputs and outputs of an anonymous procedure. Parameters are replaced with \textit{holes}, which is syntactically an \texttt{@} sign optionally followed by an integer greater than zero, \textit{e.g.}, \texttt{@} or \texttt{@2}. All holes in the same anonymous procedure must be either numbered or unnumbered, and a syntax error will be raised if both numbered and unnumbered holes are used in the same anonymous procedure. 
+
+The number of a hole dictates the parameter's position, with duplicates referring to the same parameter. The position of unnumbered holes follows an in-order traversal of the source code. Unnumbered holes are a syntactic shorthand and are applicable only in the case that all numbered holes are both used once and in order. An example of equivalent anonymous procedures with numbered and unnumbered holes is seen in \cref{lst:anon-proc}, lines~\ref{lst:anon-proc--number-start}--\ref{lst:anon-proc--number-end}.
+
+\begin{figure}[ht]
+  \setcaptiontype{lstlisting}
+  \centering
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}
+?f = { @1 + 1 = ?@2 } <@\label{lst:anon-proc--number-start}@>
+?f = { @ + 1 = ?@ }   <@\label{lst:anon-proc--number-end}@>
+
+?g = { ?@2 - 1 = @1 }
+
+?h = { 
+    ?t = @1 + @2
+    ?@3 = t * (@4 * t)
+}
+?h = { 
+    ?t = @ + @
+    ?@ = t
+}
+
+?i = { @1 + @2 = ?@1 }
+
+?j = { @1 = ?@3 }
+
+?x = 1
+?k = { @1 + x = ?@2 } <@\label{lst:anon-proc--free}@>
+\end{lstlisting}
+    \subcaption{Anonymous procedures.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}[numbers=none]
+def f(p1, ?p2) { p1 + 1 = ?p2 } 
+
+
+def g(p1, ?p2) { ?p2 - 1 = p1 }
+
+def h(p1, p2, ?p3) { 
+    ?t = p1 + p2
+    ?p3 = t
+}
+
+
+
+
+
+def i(!p1, p2) { p1 + p2 = ?p1 }
+
+def j(p1, p2, ?p3) { p1 = ?p3 }
+
+
+def k(x, p1, ?p2) { p1 + x = ?p2 }
+\end{lstlisting}
+    \subcaption{Equivalent procedures.}
+  \end{minipage}
+  \caption[Example anonymous procedure syntax with equivalent procedures.]{Example anonymous procedure syntax with equivalent procedures. Where the anonymous procedure is defined twice, the definitions differ in being (un-)numbered.}
+  \label{lst:anon-proc}
+\end{figure}
+
+Each hole is treated as a variable within the anonymous procedure body, and as such can be used with an accompanying mode. The mode of all usages of holes with the same number within an anonymous procedure indicates the mode of the argument. For holes that are used with exactly one mode (\textit{i.e.}, in, out, or in/out), the mode is exactly that, otherwise, it is in/out. If a number is skipped, the mode of the argument with that number is treated as an input and ignored.
+
+Anonymous procedures also can capture the state of the procedure in which they are defined. If a variable is defined in the procedure before the anonymous procedure, this variable can be captured as a \textit{free variable} within the anonymous procedure. An example of such can be seen in \cref{lst:anon-proc}, line~\ref{lst:anon-proc--free}, where inside the anonymous procedure bound to \texttt{k} the variable \texttt{x} is captured as a free variable. The equivalent procedure provided is not a true equivalent as procedure declarations cannot contain free variables. 
+
+Upon each invocation of the anonymous procedure, the value of a free variable is the value of the variable when the anonymous procedure was defined. Likewise, any modifications to a free variable are not propagated outside the anonymous procedure. This captures the value of the variable, not a reference to the variable, as is the case in some imperative languages. 
+
+An anonymous procedure may be preceded by a collection of modifiers. These modifiers, syntactically placed between braces (\{ \dots \}), allow for various modifiers to be specified for the anonymous procedure, being similar to the modifiers of regular procedure definitions. These specify the determinism (\texttt{test}, \texttt{failing}, or \texttt{terminal}), purity (\texttt{pure}, \texttt{semipure}, or \texttt{impure}) and ability to use resources (\texttt{resource}) of the anonymous procedure. If omitted, the anonymous procedure is deterministic, pure, and cannot use resources. For instance, these modifiers allow for an anonymous procedure to be called as a \texttt{test} in a \texttt{test} context, or an anonymous procedure to call \texttt{impure} procedures if marked as \texttt{semipure}.
+
+\subsection{Partial Application}
+\label{ssec:ss-partial-application}
+
+Common in languages with higher-order programming is the concept of partial application. Partial applications allow for some arguments to be specified, producing a term that can be called with the remaining arguments specified. In Wybe, the mode system allows for arbitrary arguments to be specified as outputs. This contrasts with other languages wherein all arguments are inputs and there is a single return value. With partial applications, the arguments that can be specified in a partial application must be inputs as there is no guarantee an output is ever produced. 
+
+\begin{lstlisting}[
+  caption={Example of partial application in Wybe.},
+  label={lst:partial-application},
+  float=ht
+]
+def add(x:int, y:int, ?z:int) { x + y = ?z }
+
+?add_one = add(1)
+?add_one = { add(1, @, ?@) } # equivalently
+
+?three = add_one(2)
+\end{lstlisting}
+
+Partial applications achieve the same result as the use of an equivalent anonymous procedure (\cref{ssec:anon-proc}). However, we choose to also offer partial application as a more compact syntactic representation when the leading argument(s) are the ones to be specified.
+
+\section{Higher-Order Resources}
+\label{sec:ss-higher-order-resources}
+
+With the resource system and higher-order programming in Wybe, one naturally is led to ask how higher-order programming and resources can be used together. As procedures in Wybe are annotated with their resource usage, a natural extension of these semantics is one where each higher-order term is annotated with the resources that the higher-order term uses, being part of the higher-order type. 
+
+\begin{lstlisting}[
+  caption={Potential semantics for higher-order resources, exemplifying the annotations of which resources the higher-order term can use.},
+  label={lst:higher-order-resource-explicit},
+  float=ht
+]
+def map(f:(X) use !io, xs:list(X)) {
+    for ?x in xs {
+        !f(x)
+    }
+}
+
+!map(println, [1, 2, 3]) # print list of ints
+\end{lstlisting}
+
+\cref{lst:higher-order-resource-explicit} shows an example of how these semantics may be translated into syntax. The higher-order term \texttt{f} in \texttt{map} is annotated with the use of the \texttt{io} resource, allowing a procedure that uses the \texttt{io} resource to be applied to all elements in some list. However, the increased expressiveness gained with higher-order programming is ultimately lost with these semantics. The annotation of exactly which resources the higher-order term can use is detrimental for two factors. First, if we were to write \texttt{map} using another set of resources, a very similar definition of \texttt{map} has to be provided. Second, the annotation of flow has similar detrimental effects on the verbosity of this semantics.
+
+\begin{lstlisting}[
+  caption={%TC:ignore
+    [Potential syntax for higher-order resources, exemplifying the verbosity of the semantics.]%TC:endignore
+    Potential syntax for higher-order resources, exemplifying the verbosity of the semantics. Note that the flow of the \texttt{counter} resource is different in the latter definitions of \texttt{map}.},
+  label={lst:higher-order-resource-explicit-overload},
+  float=ht
+]
+resource counter:int
+def map(f:(X) use !io, xs:list(X)) {
+    for ?x in xs {
+        !f(x)
+    }
+}
+def map(f:(X) use {!io, counter}, xs:list(X)) {
+    for ?x in xs {
+        !f(x)
+    }
+}
+def map(f:(X) use {!io, [@?@]counter}, xs:list(X)) {
+    for ?x in xs {
+        !f(x)
+    }
+}
+def map(f:(X) use {!io, [@!@]counter}, xs:list(X)) {
+    for ?x in xs {
+        !f(x)
+    }
+}
+\end{lstlisting}
+
+In \cref{lst:higher-order-resource-explicit-overload}, we exemplify how these higher-order resource semantics decreases the expressiveness of higher-order code. Each definition of \texttt{map} requires the annotation of exactly which resources the term can use, and the flow of each resource. Further, if a new resource is introduced, each definition may be duplicated for each flow of the new resource.
+
+An alternative to this explicit annotation may be to forgo all resource annotations and allow for a higher-order term to freely use any resource. This comes at the cost of the optimisations available for the compiler. Lacking the annotation of resource usage means that any higher-order term may use any resource, and hence optimisations will need to conservatively assume that some resource is modified. Calls to such higher-order terms could also not be annotated with a preceding \texttt{!} to mark the call using some resource.
+
+As a compromise between these two semantics, we propose a semantics that annotates the usage of \textit{some} but not which resource(s), by marking each higher-order type with a \texttt{resource} modifier if may use said resources. We believe that this semantics allow for the increased expressiveness of higher-order programming while retaining key properties of first-order resources. The implementation strategy we devise for this semantics can be found in \cref{sec:resources-as-globals}. 
+
+\begin{lstlisting}[
+  caption={Increased expressiveness with the proposed semantics of higher-order resources.},
+  label={lst:higher-order-resource},
+  float=ht
+]
+def map(f:{resource}(X), xs:list(X)) {
+    for ?x in xs {
+        !f(x)
+    }
+}
+
+!map(println, [1, 2, 3]) # print a list
+
+resource counter:int = 0
+
+def tally(x:int) use !counter { ?counter = counter + x }
+
+!map(tally, [1, 2, 3]) # tally with the counter resource
+\end{lstlisting}
+
+With the use of the example in \cref{lst:higher-order-resource}, the term \texttt{f} may use some resource. This allows for the same definition, here of \texttt{map}, but is independent of which resource(s) the mapping function, \texttt{f}, uses. Here we use the same definition of \texttt{map} to print a series of elements from a list and tally the sum of a different list of elements. This is analogous to the \texttt{mapM\_} function in Haskell, which allows a single monadic action to be applied to all elements of a list, however, in Wybe, multiple resources may be used instead.
+
+In this semantics, to ensure that the usage of some resource is sensible, we require that the resource is appropriately in scope where the higher-order term is defined. In \cref{lst:higher-order-resource}, the \texttt{io} and \texttt{counter} resources are not in scope in the \texttt{map} procedure, however can be modified by the input higher-order term, as these terms, partial applications of \texttt{println} and \texttt{tally}, were defined in a scope wherein these resources were available and appropriately bound. 
+
+For anonymous procedures, the resources the anonymous procedure can use are implicit within the scope where the term is defined. That is, any resource in scope where the anonymous procedure is defined can be used within the procedure. In \cref{lst:higher-order-resource-def}, we define numerous anonymous procedures, with a comment indicating if the definition is legal. Legal definitions require that not only resources are appropriately in scope where the anonymous procedure is defined but also are appropriately bound. This is the case with the first definition of \texttt{f} with a call to \texttt{res\_in}, as the resource \texttt{res} is in scope. Note that the resource is not bound after this definition of \texttt{f}.
+
+\begin{lstlisting}[
+  caption={Example definitions of resourceful higher-order terms.},
+  label={lst:higher-order-resource-def},
+  float=ht
+]
+resource res:int
+
+def res_in    use  res { pass }
+def res_out   use ?res { ?res = 1 }
+def res_inout use !res { ?res = res + 1 }
+
+use res in {
+    ?f = {resource}{ !res_out }   # legal:   res is in scope
+    ?f = {resource}{ !res_in }    # illegal: res is in scope, not bound
+    ?res = 1
+    ?f = {resource}{ !res_in }    # legal:   res is now bound
+    ?f = {resource}{ !res_inout } # legal:   res is in scope, and bound
+}
+
+?f = {resource}{ !res_inout }     # illegal: res is not in scope
+\end{lstlisting}
+
+In the first \textit{illegal} definition of \texttt{f}, the call to \texttt{res\_in} inside the anonymous procedure's body requires that the \texttt{res} resource is bound as it is used as input, however this is not the case. As we cannot be sure that the resource has been appropriately bound before the call, this property must be ensured before the anonymous procedure has been defined. 
+
+As a higher-order term may not be called, the resource binding state is unchanged. \texttt{I.e.}, if some reason is bound to a value inside an anonymous procedure but not bound after before the anonymous procedure is defined, the resource is not bound after the anonymous is defined. The same rules apply to partial applications. Ensuring that resources are appropriately bound and in scope ensures that some parent call scope has the resource in scope. This ensures that the resource is appropriately bound to some sensible value.
+
+\texttt{use} blocks provide a scope where some resource is available. With \texttt{use} blocks, this may create a scope where some resource is now shared with the caller's scope. Previously, as the resources in scope only affected the resource the procedure was declared to use, \texttt{use} blocks introduced a new scope. With higher-order terms, however, a parameter may be able to modify a resource that was not previously in scope.
+
+\begin{lstlisting}[
+  caption={Example use of a resourceful higher-order parameter inside a \texttt{use} block.},
+  label={lst:higher-order-use},
+  float=ht
+]
+resource res:int
+
+def call(f:{resource}(), ?x:int) {
+    !f()         # call f, may modify res from parent scope
+    use res in {
+        ?res = 1 # assign res
+        !f()     # f may modify res 
+        ?x = res # assign x the (possibly modified) value of res
+    } 
+    !f()         # as with first call to f
+}
+
+use res in {
+    # calling f increments res
+    ?f = {resource}{ ?res = res + 1 }
+
+    !call(f, ?x) # x = 2 after call, res has been incremented twice
+}
+\end{lstlisting}
+
+An example of this behaviour can be seen in \cref{lst:higher-order-use}. In \texttt{call}, the term \texttt{f} can use some resource, which may be the same as the resource in the \texttt{use} block. The value of \texttt{res} is modified both inside and outside the \texttt{use} block in the call to \texttt{call}, due to the calls to \texttt{f} incrementing the resource's value. 
+
+Instead of the resource in the \texttt{use} block's scope being \textit{different} to that of the resource possibly used by \texttt{f}, the semantics we define dictate that the resource modified is the \textit{same} resource. This allows for more interesting interactions, as higher-order terms can interact with the resources in the current scope, and ensures that there is always a single value for each resource.
+
+We believe that the semantics for resources in a higher-order context we have defined in this section attain a balance between the increased expressiveness gained with higher-order programming, while retaining key properties of resources. The explicitness property of resources ensures that \textit{interface integrity} is ensured, as the interface dictates that some resources may be affected. These semantics do relax the constraint of a resource being in scope from the \textit{current} scope to some \textit{parent} scope.

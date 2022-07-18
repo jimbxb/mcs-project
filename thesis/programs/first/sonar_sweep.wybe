@@ -1,0 +1,36 @@
+resource counter:int
+
+def read_ints(?is:list(int)) use !io {
+    ?is = []
+    do {
+        !read(?i)
+        until i < 0
+        ?is = [i | is]
+    }
+    reverse(is, ?is)
+}
+
+def foldn_incr_increasing(n:int, as:list(int)) use !counter {
+    if { as = [?a0 | ?as] & as[n] = ?an :: 
+        !incr_increasing(a0, an)
+        !foldn_incr_increasing(n, as)
+    }
+}
+
+def incr_increasing(a:int, b:int) use !counter {
+    if { a < b :: incr(!counter) }
+}
+
+def solve(n:int, depths:list(int), ?ans:int) {
+    use counter in {
+        ?counter = 0
+        !foldn_incr_increasing(n, depths)
+        ?ans = counter
+    }
+}
+
+!read(?n)
+!read_ints(?depths)
+for ?i in 0..n {
+    !println(solve(i, depths))
+}

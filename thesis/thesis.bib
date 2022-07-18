@@ -1,0 +1,1065 @@
+@book{aho2007compilers,
+  title     = {Compilers: principles, techniques, \& tools},
+  author    = {Aho, Alfred V and Lam, Monica S and Sethi, Ravi and Ullman, Jeffrey D},
+  year      = {2007},
+  publisher = {Pearson Education India}
+}
+
+@mastersthesis{ananian2001static,
+  title  = {The static single information form},
+  author = {C. Ananian},
+  year   = {2001},
+  school = {Princeton University}
+}
+
+@article{appel1987garbage,
+  title     = {Garbage collection can be faster than stack allocation},
+  author    = {Appel, Andrew W},
+  journal   = {Information Processing Letters},
+  volume    = {25},
+  number    = {4},
+  pages     = {275--279},
+  year      = {1987},
+  publisher = {Elsevier}
+}
+
+@inproceedings{appel1989continuation,
+  author    = {Appel, A. W. and Jim, T.},
+  title     = {Continuation-Passing, Closure-Passing Style},
+  year      = {1989},
+  isbn      = {0897912942},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/75277.75303},
+  doi       = {10.1145/75277.75303},
+  abstract  = {We implemented a continuation-passing style (CPS) code generator for ML. Our CPS language is represented as an ML datatype in which all functions are named and most kinds of ill-formed expressions are impossible. We separate the code generation into phases that rewrite this representation into ever-simpler forms. Closures are represented explicitly as records, so that closure strategies can be communicated from one phase to another. No stack is used. Our benchmark data shows that the new method is an improvement over our previous, abstract-machine based code generator.},
+  booktitle = {Proceedings of the 16th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages     = {293-302},
+  numpages  = {10},
+  location  = {Austin, Texas, USA},
+  series    = {POPL '89}
+}
+
+@article{appel1996empirical,
+  title     = {Empirical and analytic study of stack versus heap cost for languages with closures},
+  author    = {Appel, Andrew W and Shao, Zhong},
+  journal   = {Journal of Functional Programming},
+  volume    = {6},
+  number    = {1},
+  pages     = {47--74},
+  year      = {1996},
+  publisher = {Cambridge University Press}
+}
+
+@article{appel1998ssa,
+  author     = {Appel, Andrew W.},
+  title      = {SSA is Functional Programming},
+  year       = {1998},
+  issue_date = {April 1998},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {33},
+  number     = {4},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/278283.278285},
+  doi        = {10.1145/278283.278285},
+  journal    = {SIGPLAN Not.},
+  month      = apr,
+  pages      = {17-20},
+  numpages   = {4}
+}
+
+@article{appleby1988garbarge,
+  author     = {Appleby, Karen and Carlsson, Mats and Haridi, Seif and Sahlin, Dan},
+  title      = {Garbarge Collection for Prolog Based on WAM},
+  year       = {1988},
+  issue_date = {June 1988},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {31},
+  number     = {6},
+  issn       = {0001-0782},
+  url        = {https://doi.org/10.1145/62959.62968},
+  doi        = {10.1145/62959.62968},
+  abstract   = {The Warren abstract machine (WAM) has become a generally accepted standard Prolog implementation technique. Garbage collection is an important aspect in the implementation of any Prolog system. A synopsis of the WAM is presented and then marking and compaction algorithms are shown that take advantage of WAM's unique use of the data areas. Marking and compaction are performed on both the heap and the trail; both use pointer reversal techniques, which obviate the need for extra stack space. However, two bits for every pointer on the heap are reserved for the garbage collection algorithm. The algorithm can work on segments of the heap, which may lead to a significant reduction of the total garbage collection time. The time of the algorithms are linear in the size of the areas.},
+  journal    = {Commun. ACM},
+  month      = {jun},
+  pages      = {719–741},
+  numpages   = {23}
+}
+
+@article{backus1960report,
+  author     = {Backus, J. W. and Bauer, F. L. and Green, J. and Katz, C. and McCarthy, J. and Perlis, A. J. and Rutishauser, H. and Samelson, K. and Vauquois, B. and Wegstein, J. H. and van Wijngaarden, A. and Woodger, M. and Naur, Peter},
+  title      = {Report on the Algorithmic Language ALGOL 60},
+  year       = {1960},
+  issue_date = {May 1960},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {3},
+  number     = {5},
+  issn       = {0001-0782},
+  url        = {https://doi.org/10.1145/367236.367262},
+  doi        = {10.1145/367236.367262},
+  journal    = {Commun. ACM},
+  month      = may,
+  pages      = {299-314},
+  numpages   = {16}
+}
+
+@article{barendregt1991introduction,
+  title     = {Introduction to generalized type systems},
+  author    = {Barendregt, Henk},
+  journal   = {Journal of functional programming},
+  volume    = {1},
+  number    = {2},
+  pages     = {125--154},
+  year      = {1991},
+  publisher = {Cambridge University Press}
+}
+
+@article{beyene2020verification,
+  author     = {Beyene, Tewodros A. and Herrera, Christian and Nigam, Vivek},
+  title      = {Verification of Ada Programs with AdaHorn},
+  year       = {2020},
+  issue_date = {December 2019},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {39},
+  number     = {2},
+  issn       = {1094-3641},
+  url        = {https://doi.org/10.1145/3394514.3394517},
+  doi        = {10.1145/3394514.3394517},
+  abstract   = {We propose AdaHorn, a model checker for verification of Ada programs with respect to correctness properties given as assertions. AdaHorn translates an Ada program together with its assertion into a set of Constrained Horn Clauses, and feeds it to a Horn constraints solver. We evaluate the performance of AdaHorn on a set of Ada programs inspired by C programs from the software verification competition (SV-COMP). Our experimental results show that AdaHorn outputs correct results in more cases than GNATProve, which is a widely used Ada verification framework.},
+  journal    = {Ada Lett.},
+  month      = apr,
+  pages      = {29-34},
+  numpages   = {6},
+  keywords   = {ada verification, horn constraints solving, model checking}
+}
+
+@inproceedings{braun2013simple,
+  author    = {Braun, Matthias and Buchwald, Sebastian and Hack, Sebastian and Lei{\ss}a, Roland and Mallon, Christoph and Zwinkau, Andreas},
+  editor    = {Jhala, Ranjit and De Bosschere, Koen},
+  title     = {Simple and Efficient Construction of Static Single Assignment Form},
+  booktitle = {Compiler Construction},
+  year      = {2013},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {102--122},
+  abstract  = {We present a simple SSA construction algorithm, which allows direct translation from an abstract syntax tree or bytecode into an SSA-based intermediate representation. The algorithm requires no prior analysis and ensures that even during construction the intermediate representation is in SSA form. This allows the application of SSA-based optimizations during construction. After completion, the intermediate representation is in minimal and pruned SSA form. In spite of its simplicity, the runtime of our algorithm is on par with Cytron et al.'s algorithm.},
+  isbn      = {978-3-642-37051-9}
+}
+
+@book{cardelli1984functional,
+  title     = {The functional abstract machine},
+  author    = {Cardelli, Luca},
+  year      = {1984},
+  publisher = {Citeseer}
+}
+
+@article{cardelli1994extension,
+  title     = {An extension of system F with subtyping},
+  author    = {Cardelli, Luca and Martini, Simone and Mitchell, John C and Scedrov, Andre},
+  journal   = {Information and computation},
+  volume    = {109},
+  number    = {1-2},
+  pages     = {4--56},
+  year      = {1994},
+  publisher = {Elsevier}
+}
+
+@mastersthesis{chen2020multiple,
+  author = {Chen, Zijun},
+  title  = {Multiple Specialization for the Wybe Programming Language},
+  school = {The University of Melbourne - School of Computing and Information Systems},
+  year   = {2020}
+}
+
+@article{chow2013intermediate,
+  author     = {Chow, Fred},
+  title      = {Intermediate Representation: The Increasing Significance of Intermediate Representations in Compilers},
+  year       = {2013},
+  issue_date = {October 2013},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {11},
+  number     = {10},
+  issn       = {1542-7730},
+  url        = {https://doi.org/10.1145/2542661.2544374},
+  doi        = {10.1145/2542661.2544374},
+  abstract   = {Program compilation is a complicated process. A compiler is a software program that translates a high-level source language program into a form ready to execute on a computer. Early in the evolution of compilers, designers introduced IRs (intermediate representations, also commonly called intermediate languages) to manage the complexity of the compilation process. The use of an IR as the compiler’s internal representation of the program enables the compiler to be broken up into multiple phases and components, thus benefiting from modularity.},
+  journal    = {Queue},
+  month      = {oct},
+  pages      = {30-37},
+  numpages   = {8}
+}
+
+@article{church1940formulation,
+  title     = {A formulation of the simple theory of types},
+  volume    = {5},
+  doi       = {10.2307/2266170},
+  number    = {2},
+  journal   = {Journal of Symbolic Logic},
+  publisher = {Cambridge University Press},
+  author    = {Church, Alonzo},
+  year      = {1940},
+  pages     = {56-68}
+}
+
+@inproceedings{click1995simple,
+  author    = {Click, Cliff and Paleczny, Michael},
+  title     = {A Simple Graph-Based Intermediate Representation},
+  year      = {1995},
+  isbn      = {0897917545},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/202529.202534},
+  doi       = {10.1145/202529.202534},
+  abstract  = {We present a graph-based intermediate representation (IR) with simple semantics and a low-memory-cost C++ implementation. The IR uses a directed graph with labeled vertices and ordered inputs but unordered outputs. Vertices are labeled with opcodes, edges are unlabeled. We represent the CFG and basic blocks with the same vertex and edge structures. Each opcode is defined by a C++ class that encapsulates opcode-specific data and behavior. We use inheritance to abstract common opcode behavior, allowing new opcodes to be easily defined from old ones. The resulting IR is simple, fast and easy to use.},
+  booktitle = {Papers from the 1995 ACM SIGPLAN Workshop on Intermediate Representations},
+  pages     = {35-49},
+  numpages  = {15},
+  location  = {San Francisco, California, USA},
+  series    = {IR '95}
+}
+
+@inproceedings{cocke1970global,
+  author    = {Cocke, John},
+  title     = {Global Common Subexpression Elimination},
+  year      = {1970},
+  isbn      = {9781450373869},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/800028.808480},
+  doi       = {10.1145/800028.808480},
+  abstract  = {When considering compiler optimization, there are two questions that immediately come to mind; one, why and to what extent is optimization necessary and two, to what extent is it possible.When considering the second question, one might immediately become discouraged since it is well known that the program equivalency problem is recursively unsolvable. It is, of course, clear from this that there will never be techniques for generating a completely optimum program. These unsolvability results, however, do not preclude the possibility of ad hoc techniques for program improvement or even a partial theory which produces a class of equivalent programs optimized in varying degrees.The reasons why optimization is required seem to me to fall in two major categories. The first I will call “local” and the second “global”.},
+  booktitle = {Proceedings of a Symposium on Compiler Optimization},
+  pages     = {20-24},
+  numpages  = {5},
+  location  = {Urbana-Champaign, Illinois}
+}
+
+@article{colmerauer1993prolog,
+  author     = {Colmerauer, Alain and Roussel, Philippe},
+  title      = {The Birth of Prolog},
+  year       = {1993},
+  issue_date = {March 1993},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {28},
+  number     = {3},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/155360.155362},
+  doi        = {10.1145/155360.155362},
+  abstract   = {The programming language, Prolog, was born of a project aimed not at producing a programming language but at processing natural languages; in this case, French. The project gave rise to a preliminary version of Prolog at the end of 1971 and a more definitive version at the end of 1972. This article gives the history of this project and describes in detail the preliminary and then the final versions of Prolog. The authors also felt it appropriate to describe the Q-systems since it was a language which played a prominent part in Prolog's genesis.},
+  journal    = {SIGPLAN Not.},
+  month      = {mar},
+  pages      = {37-52},
+  numpages   = {16}
+}
+
+
+@article{cooper2001simple,
+  title   = {A simple, fast dominance algorithm},
+  author  = {Cooper, Keith D and Harvey, Timothy J and Kennedy, Ken},
+  journal = {Software Practice \& Experience},
+  volume  = {4},
+  number  = {1-10},
+  pages   = {1--8},
+  year    = {2001}
+}
+
+@book{curry1958combinatory,
+  title     = {Combinatory logic},
+  author    = {Curry, Haskell Brooks and Feys, Robert and Craig, William and Hindley, J Roger and Seldin, Jonathan P},
+  volume    = {1},
+  year      = {1958},
+  publisher = {North-Holland Amsterdam}
+}
+
+@article{cytron1991efficiently,
+  author  = {Ron Cytron and Jeanne Ferrante and Barry K. Rosen and Mark N. Wegman and F. Kenneth Zadeck},
+  title   = {Efficiently computing static single assignment form and the control dependence graph},
+  journal = {ACM TRANSACTIONS ON PROGRAMMING LANGUAGES AND SYSTEMS},
+  year    = {1991},
+  volume  = {13},
+  pages   = {451--490}
+}
+
+@inproceedings{damas1982principal,
+  author    = {Damas, Luis and Milner, Robin},
+  title     = {Principal Type-Schemes for Functional Programs},
+  year      = {1982},
+  isbn      = {0897910656},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/582153.582176},
+  doi       = {10.1145/582153.582176},
+  booktitle = {Proceedings of the 9th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages     = {207–212},
+  numpages  = {6},
+  location  = {Albuquerque, New Mexico},
+  series    = {POPL '82}
+}
+
+@phdthesis{damas1984type,
+  title  = {Type assignment in programming languages},
+  author = {Damas, Luis},
+  year   = {1984},
+  school = {University of Edinburgh}
+}
+
+@inproceedings{danvy1997lambda,
+  title     = {Lambda-dropping: transforming recursive equations into programs with block structure},
+  author    = {Danvy, Olivier and Schultz, Ulrik P},
+  booktitle = {Proceedings of the 1997 ACM SIGPLAN symposium on Partial evaluation and semantics-based program manipulation},
+  pages     = {90--106},
+  year      = {1997}
+}
+
+@inproceedings{dietrich1988polymorphic,
+  title        = {A polymorphic type system with subtypes for Prolog},
+  author       = {Dietrich, Roland and Hagl, Frank},
+  booktitle    = {European Symposium on Programming},
+  pages        = {79--93},
+  year         = {1988},
+  organization = {Springer}
+}
+
+@inproceedings{ding2014single,
+  author    = {Ding, Shuhan and Earnest, John and \"{O}nder, Soner},
+  title     = {Single Assignment Compiler, Single Assignment Architecture: Future Gated Single Assignment Form*; Static Single Assignment with Congruence Classes},
+  year      = {2014},
+  isbn      = {9781450326704},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2581122.2544158},
+  doi       = {10.1145/2581122.2544158},
+  abstract  = {We present a new static single assignment form which can be used by an optimizing compiler as its internal representation and the micro-architecture as its instruction set. This representation, Future Gated Single Assignment Form (FGSA), directly represents the use-def relationship of variables by employing the concept of congruence classes and the concept of future dependencies. We show that FGSA is efficiently computable by using a series of T1/T2 transformations, yielding an expected linear time algorithm for the construction of single assignment form. Our interval analysis method includes a novel transformation TR which eliminates irreducible loops without node splitting and combines computation of single-assignment form with irreducible loop elimination. The algorithm produces pruned single assignment form, rendering a separate pruning step unnecessary. In practice, the FGSA approach results in an average reduction of 7.7%, with a maximum of 67% in the number of gating functions compared to the pruned SSA form on the SPEC2000 benchmark suite, owing to its ability to represent dataflow within a congruence class by using a single gating function. We illustrate that FGSA is convenient to use as an internal representation in an optimizing compiler by presenting two case studies of optimization algorithms on FGSA.},
+  booktitle = {Proceedings of Annual IEEE/ACM International Symposium on Code Generation and Optimization},
+  pages     = {196-207},
+  numpages  = {12},
+  keywords  = {demand and control driven execution, Single-assignment form, bi-directional data flow analysis},
+  location  = {Orlando, FL, USA},
+  series    = {CGO '14}
+}
+
+@inproceedings{dragos2008optimising,
+  title     = {Optimizing Higher-Order Functions in Scala},
+  author    = {Drago{\c{s}}, Iulian},
+  year      = {2008},
+  abstract  = {Scala relies on libraries as the default mechanism for  language extension. While this provides an elegant solution  for growing the language, the performance penalty incurred  by call-by-name parameters, boxing and anonymous functions  is high. We show that inlining alone is not enough to  remove this overhead, and present a solution based on  decompilation of library code combined with inlining, dead  code elimination, and copy propagation. We evaluate our  approach on two language extensions, Java-like assert and  C-like for-loops and show improvements of up to 45%.},
+  booktitle = {Third International Workshop on Implementation, Compilation, Optimization of Object-Oriented Languages, Programs and Systems},
+  url       = {http://infoscience.epfl.ch/record/128135}
+}
+
+@book{frege1893grundgesetze,
+  title     = {Grundgesetze der Arithmetik: begriffsschriftlich abgeleitet},
+  author    = {Frege, Gottlob},
+  volume    = {1},
+  year      = {1893},
+  publisher = {H. Pohle}
+}
+
+@article{gange2015horn,
+  title     = {Horn clauses as an intermediate representation for program analysis and transformation},
+  author    = {Gange, Graeme and Navas, Jorge A and Schachte, Peter and S{\o}ndergaard, Harald and Stuckey, Peter J},
+  journal   = {Theory and Practice of Logic Programming},
+  volume    = {15},
+  number    = {4-5},
+  pages     = {526--542},
+  year      = {2015},
+  publisher = {Cambridge University Press}
+}
+
+@phdthesis{girard1972interpretation,
+  title  = {Interpr{\'e}tation fonctionnelle et {\'e}limination des coupures de l'arithm{\'e}tique d'ordre sup{\'e}rieur},
+  author = {Girard, Jean-Yves},
+  year   = {1972},
+  school = {{\'E}diteur inconnu}
+}
+
+@book{godel1992formally,
+  title     = {On formally undecidable propositions of Principia Mathematica and related systems},
+  author    = {G{\"o}del, Kurt},
+  year      = {1992},
+  publisher = {Courier Corporation}
+}
+
+@misc{guoy2000computer,
+  title  = {The Computer Language Benchmarks Game},
+  url    = {https://benchmarksgame-team.pages.debian.net/benchmarksgame/},
+  author = {Guoy, Isaac},
+  year   = {2000}
+}
+
+@misc{guoy2008computer,
+  title  = {The Computer Language Benchmarks Game},
+  url    = {https://benchmarksgame-team.pages.debian.net/benchmarksgame/},
+  author = {Guoy, Isaac},
+  year   = {2000}
+}
+
+@book{halstead1977elements,
+  title     = {Elements of Software Science (Operating and programming systems series)},
+  author    = {Halstead, Maurice H},
+  year      = {1977},
+  publisher = {Elsevier Science Inc.}
+}
+
+@article{harrold1994efficient,
+  title     = {Efficient computation of interprocedural definition-use chains},
+  author    = {Harrold, Mary Jean and Soffa, Mary Lou},
+  journal   = {ACM Transactions on Programming Languages and Systems (TOPLAS)},
+  volume    = {16},
+  number    = {2},
+  pages     = {175--204},
+  year      = {1994},
+  publisher = {ACM New York, NY, USA}
+}
+
+@inproceedings{havlak1993construction,
+  title        = {Construction of thinned gated single-assignment form},
+  author       = {Havlak, Paul},
+  booktitle    = {International Workshop on Languages and Compilers for Parallel Computing},
+  pages        = {477--499},
+  year         = {1993},
+  organization = {Springer}
+}
+
+@article{henglein1993type,
+  author     = {Henglein, Fritz},
+  title      = {Type Inference with Polymorphic Recursion},
+  year       = {1993},
+  issue_date = {April 1993},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {15},
+  number     = {2},
+  issn       = {0164-0925},
+  url        = {https://doi.org/10.1145/169701.169692},
+  doi        = {10.1145/169701.169692},
+  journal    = {ACM Trans. Program. Lang. Syst.},
+  month      = apr,
+  pages      = {253-289},
+  numpages   = {37},
+  keywords   = {recursion, polymorphism, semiunification, type inference}
+}
+
+@article{hindley1969principal,
+  title     = {The principal type-scheme of an object in combinatory logic},
+  author    = {Hindley, Roger},
+  journal   = {Transactions of the American Mathematical Society},
+  volume    = {146},
+  pages     = {29--60},
+  year      = {1969},
+  publisher = {JSTOR}
+}
+
+@article{horn1951sentences,
+  title     = {On sentences which are true of direct unions of algebras},
+  author    = {Horn, Alfred},
+  journal   = {The Journal of Symbolic Logic},
+  volume    = {16},
+  number    = {1},
+  pages     = {14--21},
+  year      = {1951},
+  publisher = {Cambridge University Press}
+}
+
+@inproceedings{huseinovic2015benchmark,
+  author    = {Huseinović, Alvin and Ribić, Samir},
+  booktitle = {2015 23rd Telecommunications Forum Telfor (TELFOR)},
+  title     = {Benchmark comparison of computing the Mandelbrot set in OpenCL},
+  year      = {2015},
+  volume    = {},
+  number    = {},
+  pages     = {994-997},
+  doi       = {10.1109/TELFOR.2015.7377632}
+}
+
+@inproceedings{johnsson1985lambda,
+  author    = {Johnsson, Thomas},
+  editor    = {Jouannaud, Jean-Pierre},
+  title     = {Lambda lifting: Transforming programs to recursive equations},
+  booktitle = {Functional Programming Languages and Computer Architecture},
+  year      = {1985},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {190--203},
+  abstract  = {Lambda lifting is a technique for transforming a functional program with local function definitions, possibly with free variables in the function definitions, into a program consisting only of global function (combinator) definitions which will be used as rewrite rules. Different ways of doing lambda lifting are presented, as well as reasons for rejecting or selecting the method used in our Lazy ML compiler. A functional program implementing the chosen algorithm is given.},
+  isbn      = {978-3-540-39677-2}
+}
+
+@book{jones2003haskell,
+  title     = {Haskell 98 language and libraries: the revised report},
+  author    = {Jones, Simon Peyton},
+  year      = {2003},
+  publisher = {Cambridge University Press}
+}
+
+@inproceedings{keep2012optimizing,
+  author    = {Keep, Andrew W. and Hearn, Alex and Dybvig, R. Kent},
+  title     = {Optimizing Closures in O(0) Time},
+  year      = {2012},
+  isbn      = {9781450318952},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2661103.2661106},
+  doi       = {10.1145/2661103.2661106},
+  abstract  = {The flat-closure model for the representation of first-class procedures is simple, safe-for-space, and efficient, allowing the values or locations of free variables to be accessed with a single memory indirect. It is a straightforward model for programmers to understand, allowing programmers to predict the worst-case behavior of their programs. This paper presents a set of optimizations that improve upon the flat-closure model along with an algorithm that implements them, and it shows that the optimizations together eliminate over 50% of run-time closure-creation and free-variable access overhead in practice, with insignificant compile-time overhead. The optimizations never add overhead and remain safe-for-space, thus preserving the benefits of the flat-closure model.},
+  booktitle = {Proceedings of the 2012 Annual Workshop on Scheme and Functional Programming},
+  pages     = {30-35},
+  numpages  = {6},
+  location  = {Copenhagen, Denmark},
+  series    = {Scheme '12}
+}
+
+@article{kelsey1995correspondence,
+  author     = {Kelsey, Richard A.},
+  title      = {A Correspondence between Continuation Passing Style and Static Single Assignment Form},
+  year       = {1995},
+  issue_date = {March 1993},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {30},
+  number     = {3},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/202530.202532},
+  doi        = {10.1145/202530.202532},
+  abstract   = {We define syntactic transformations that convert continuation passing style (CPS) programs into static single assignment form (SSA) and vice versa. Some CPS programs cannot be converted to SSA, but these are not produced by the usual CPS transformation. The CPS→SSA transformation is especially helpful for compiling functional programs. Many optimizations that normally require flow analysis can be performed directly on functional CPS programs by viewing them as SSA programs. We also present a simple program transformation that merges CPS procedures together and by doing so greatly increases the scope of the SSA flow information. This transformation is useful for analyzing loops expressed as recursive procedures.},
+  journal    = {SIGPLAN Not.},
+  month      = mar,
+  pages      = {13-22},
+  numpages   = {10}
+}
+
+@article{knuth1984complexity,
+  author     = {Knuth, Donald E.},
+  title      = {The Complexity of Songs},
+  year       = {1984},
+  issue_date = {April 1984},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {27},
+  number     = {4},
+  issn       = {0001-0782},
+  url        = {https://doi.org/10.1145/358027.358042},
+  doi        = {10.1145/358027.358042},
+  journal    = {Commun. ACM},
+  month      = {apr},
+  pages      = {344-346},
+  numpages   = {3}
+}
+
+@inproceedings{lakshman1991typed,
+  author    = {Lakshman, T. and Reddy, Uday},
+  year      = {1991},
+  month     = {01},
+  pages     = {202-217},
+  publisher = {MIT Press},
+  booktitle = {1991 International Logic Programming Symposium},
+  title     = {Typed Prolog: A Semantic Reconstruction of the Mycroft-O'Keefe Type System}
+}
+
+@article{landin1964mechanical,
+  title     = {The mechanical evaluation of expressions},
+  author    = {Landin, Peter J},
+  journal   = {The Computer Journal},
+  volume    = {6},
+  number    = {4},
+  pages     = {308--320},
+  year      = {1964},
+  publisher = {The British Computer Society}
+}
+
+@inproceedings{lattner2004llvm,
+  author    = {Lattner, C. and Adve, V.},
+  booktitle = {International Symposium on Code Generation and Optimization, 2004. CGO 2004.},
+  title     = {LLVM: a compilation framework for lifelong program analysis \& transformation},
+  year      = {2004},
+  volume    = {},
+  number    = {},
+  pages     = {75-86},
+  doi       = {10.1109/CGO.2004.1281665}
+}
+
+@inproceedings{leissa2015graph,
+  author    = {Leißa, Roland and Köster, Marcel and Hack, Sebastian},
+  booktitle = {2015 IEEE/ACM International Symposium on Code Generation and Optimization (CGO)},
+  title     = {A graph-based higher-order intermediate representation},
+  year      = {2015},
+  volume    = {},
+  number    = {},
+  pages     = {202-212},
+  doi       = {10.1109/CGO.2015.7054200}
+}
+
+@article{lowry1969object,
+  author     = {Lowry, Edward S. and Medlock, C. W.},
+  title      = {Object Code Optimization},
+  year       = {1969},
+  issue_date = {Jan. 1969},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {12},
+  number     = {1},
+  issn       = {0001-0782},
+  url        = {https://doi.org/10.1145/362835.362838},
+  doi        = {10.1145/362835.362838},
+  abstract   = {Methods of analyzing the control flow and data flow of programs during compilation are applied to transforming the program to improve object time efficiency. Dominance relationships, indicating which statements are necessarily executed before others, are used to do global common expression elimination and loop identification. Implementation of these and other optimizations in OS/360 FORTRAN H are described.},
+  journal    = {Commun. ACM},
+  month      = {jan},
+  pages      = {13-22},
+  numpages   = {10},
+  keywords   = {System/360, FORTRAN, optimization, object code, machine instructions, dominance, loop structure, data flow analysis, efficiency, compilers, register assignment, redundancy elimination, graph theory}
+}
+
+@article{marr2016cross,
+  author     = {Marr, Stefan and Daloze, Benoit and M\"{o}ssenb\"{o}ck, Hanspeter},
+  title      = {Cross-Language Compiler Benchmarking: Are We Fast Yet?},
+  year       = {2016},
+  issue_date = {February 2017},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {52},
+  number     = {2},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/3093334.2989232},
+  doi        = {10.1145/3093334.2989232},
+  abstract   = { Comparing the performance of programming languages is difficult because they differ in many aspects including preferred programming abstractions, available frameworks, and their runtime systems. Nonetheless, the question about relative performance comes up repeatedly in the research community, industry, and wider audience of enthusiasts. This paper presents 14 benchmarks and a novel methodology to assess the compiler effectiveness across language implementations. Using a set of common language abstractions, the benchmarks are implemented in Java, JavaScript, Ruby, Crystal, Newspeak, and Smalltalk. We show that the benchmarks exhibit a wide range of characteristics using language-agnostic metrics. Using four different languages on top of the same compiler, we show that the benchmarks perform similarly and therefore allow for a comparison of compiler effectiveness across languages. Based on anecdotes, we argue that these benchmarks help language implementers to identify performance bugs and optimization potential by comparing to other language implementations. },
+  journal    = {SIGPLAN Not.},
+  month      = {nov},
+  pages      = {120–131},
+  numpages   = {12},
+  keywords   = {Benchmarking, Languages, Virtual Machines}
+}
+
+@article{mazinanian2017understanding,
+  title     = {Understanding the use of lambda expressions in Java},
+  author    = {Mazinanian, Davood and Ketkar, Ameya and Tsantalis, Nikolaos and Dig, Danny},
+  journal   = {Proceedings of the ACM on Programming Languages},
+  volume    = {1},
+  number    = {OOPSLA},
+  pages     = {1--31},
+  year      = {2017},
+  publisher = {ACM New York, NY, USA}
+}
+
+@article{mccabe1976complexity,
+  title     = {A complexity measure},
+  author    = {McCabe, Thomas J},
+  journal   = {IEEE Transactions on software Engineering},
+  volume    = {2},
+  number    = {4},
+  pages     = {308--320},
+  year      = {1976},
+  publisher = {IEEE}
+}
+
+@article{mccarthy1960recursive,
+  title     = {Recursive functions of symbolic expressions and their computation by machine, part I},
+  author    = {McCarthy, John},
+  journal   = {Communications of the ACM},
+  volume    = {3},
+  number    = {4},
+  pages     = {184--195},
+  year      = {1960},
+  publisher = {ACM New York, NY, USA}
+}
+
+@article{michael2018dont,
+  author        = {Michael Innes},
+  title         = {Don't Unroll Adjoint: Differentiating SSA-Form Programs},
+  journal       = {CoRR},
+  volume        = {abs/1810.07951},
+  year          = {2018},
+  url           = {http://arxiv.org/abs/1810.07951},
+  archiveprefix = {arXiv},
+  eprint        = {1810.07951},
+  timestamp     = {Tue, 30 Oct 2018 20:39:56 +0100},
+  biburl        = {https://dblp.org/rec/journals/corr/abs-1810-07951.bib},
+  bibsource     = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{milner1978theory,
+  title     = {A theory of type polymorphism in programming},
+  author    = {Milner, Robin},
+  journal   = {Journal of computer and system sciences},
+  volume    = {17},
+  number    = {3},
+  pages     = {348--375},
+  year      = {1978},
+  publisher = {Elsevier}
+}
+
+@book{milner1997definition,
+  title     = {The definition of standard ML: revised},
+  author    = {Milner, Robin and Tofte, Mads and Harper, Robert and MacQueen, David},
+  year      = {1997},
+  publisher = {MIT press}
+}
+
+@article{moses1970function,
+  author     = {Moses, Joel},
+  title      = {The Function of FUNCTION in LISP or Why the FUNARG Problem Should Be Called the Environment Problem},
+  year       = {1970},
+  issue_date = {July 1970},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {15},
+  number     = {1},
+  issn       = {0163-5824},
+  url        = {https://doi.org/10.1145/1093410.1093411},
+  doi        = {10.1145/1093410.1093411},
+  abstract   = {A problem common to many powerful programming languages arises when one has to determine what values to assign to free variables in functions. Different implementational approaches which attempt to solve the problem are considered. The discussion concentrates on LISP implementations and points out why most current LISP systems are not as general as the original LISP 1.5 system. Readers not familiar with LISP should be able to read this paper without difficulty since we have tried to couch the argument in ALGOL-like terms as much as possible.},
+  journal    = {SIGSAM Bull.},
+  month      = {jul},
+  pages      = {13-27},
+  numpages   = {15}
+}
+
+@book{muchnick1997advanced,
+  title     = {Advanced compiler design implementation},
+  author    = {Muchnick, Steven and others},
+  year      = {1997},
+  publisher = {Morgan kaufmann}
+}
+
+@article{mycroft1984polymorphic,
+  title    = {A polymorphic type system for prolog},
+  journal  = {Artificial Intelligence},
+  volume   = {23},
+  number   = {3},
+  pages    = {295-307},
+  year     = {1984},
+  issn     = {0004-3702},
+  doi      = {https://doi.org/10.1016/0004-3702(84)90017-1},
+  url      = {https://www.sciencedirect.com/science/article/pii/0004370284900171},
+  author   = {Alan Mycroft and Richard A. O'Keefe},
+  abstract = {We describe a polymorphic type scheme for Prolog which makes static type checking possible. Polymorphism gives a good degree of flexibility to the type system, and makes it intrude very little on a user's programming style. The only additions to the language are type declarations, which an interpreter can ignore if it so desires, with the guarantee that a well-typed program will behave identically with or without type checking. Our implementation is discussed and we observe that the type resolution problem for a Prolog program is another Prolog (meta)program.}
+}
+
+@inproceedings{nadathur1988overview,
+  title        = {An Overview of $\lambda$ Prolog},
+  author       = {NADATHUR, G},
+  booktitle    = {5th Int. Conf. on Logic Programming},
+  year         = {1988},
+  organization = {MIT Press}
+}
+
+@inproceedings{ottenstein1990program,
+  author    = {Ottenstein, Karl J. and Ballance, Robert A. and MacCabe, Arthur B.},
+  title     = {The Program Dependence Web: A Representation Supporting Control-, Data-, and Demand-Driven Interpretation of Imperative Languages},
+  year      = {1990},
+  isbn      = {0897913647},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/93542.93578},
+  doi       = {10.1145/93542.93578},
+  abstract  = {The Program Dependence Web (PDW) is a program representation that can be directly interpreted using control-, data-, or demand-driven models of execution. A PDW combines a single-assignment version of the program with explicit operators that manage the flow of data values. The PDW can be viewed as an augmented Program Dependence Graph. Translation to the PDW representation provides the basis for projects to compile Fortran onto dynamic dataflow architectures and simulators. A second application of the PDW is the construction of various compositional semantics for program dependence graphs.},
+  booktitle = {Proceedings of the ACM SIGPLAN 1990 Conference on Programming Language Design and Implementation},
+  pages     = {257-271},
+  numpages  = {15},
+  location  = {White Plains, New York, USA},
+  series    = {PLDI '90}
+}
+
+@article{paraskevopoulou2019closure,
+  author     = {Paraskevopoulou, Zoe and Appel, Andrew W.},
+  title      = {Closure Conversion is Safe for Space},
+  year       = {2019},
+  issue_date = {August 2019},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {3},
+  number     = {ICFP},
+  url        = {https://doi.org/10.1145/3341687},
+  doi        = {10.1145/3341687},
+  abstract   = {We formally prove that closure conversion with flat environments for CPS lambda calculus is correct (preserves semantics) and safe for time and space, meaning that produced code preserves the time and space required for the execution of the source program. We give a cost model to pre- and post-closure-conversion code by formalizing profiling semantics that keep track of the time and space resources needed for the execution of a program, taking garbage collection into account. To show preservation of time and space we set up a general, "garbage-collection compatible", binary logical relation that establishes invariants on resource consumption of the related programs, along with functional correctness. Using this framework, we show semantics preservation and space and time safety for terminating source programs, and divergence preservation and space safety for diverging source programs. We formally prove that closure conversion with flat environments for CPS lambda calculus is correct (preserves semantics) and safe for time and space, meaning that produced code preserves the time and space required for the execution of the source program. We give a cost model to pre- and post-closure-conversion code by formalizing profiling semantics that keep track of the time and space resources needed for the execution of a program, taking garbage collection into account. To show preservation of time and space we set up a general, "garbage-collection compatible", binary logical relation that establishes invariants on resource consumption of the related programs, along with functional correctness. Using this framework, we show semantics preservation and space and time safety for terminating source programs, and divergence preservation and space safety for diverging source programs. This is the first formal proof of space-safety of a closure-conversion transformation. The transformation and the proof are parts of the CertiCoq compiler pipeline from Coq (Gallina) through CompCert Clight to assembly language. Our results are mechanized in the Coq proof assistant.},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = jul,
+  articleno  = {83},
+  numpages   = {29},
+  keywords   = {closure conversion, logical relations, cost models, garbage collection, compiler correctness, continuation-passing style}
+}
+
+@article{pestov2010factor,
+  title     = {Factor: A dynamic stack-based programming language},
+  author    = {Pestov, Sviatoslav and Ehrenberg, Daniel and Groff, Joe},
+  journal   = {Acm Sigplan Notices},
+  volume    = {45},
+  number    = {12},
+  pages     = {43--58},
+  year      = {2010},
+  publisher = {ACM New York, NY, USA}
+}
+
+@book{pierce2002types,
+  title     = {Types and programming languages},
+  author    = {Pierce, Benjamin C},
+  year      = {2002},
+  publisher = {MIT press}
+}
+
+@inproceedings{prosser1959applications,
+  author    = {Prosser, Reese T.},
+  title     = {Applications of Boolean Matrices to the Analysis of Flow Diagrams},
+  year      = {1959},
+  isbn      = {9781450378680},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/1460299.1460314},
+  doi       = {10.1145/1460299.1460314},
+  abstract  = {Any serious attempt at automatic programming of large-scale digital computing machines must provide for some sort of analysis of program structure. Questions concerning order of operations, location and disposition of transfers, identification of subroutines, internal consistency, redundancy and equivalence, all involve a knowledge of the structure of the program under study, and must be handled effectively by any automatic programming system.},
+  booktitle = {Papers Presented at the December 1-3, 1959, Eastern Joint IRE-AIEE-ACM Computer Conference},
+  pages     = {133-138},
+  numpages  = {6},
+  location  = {Boston, Massachusetts},
+  series    = {IRE-AIEE-ACM '59 (Eastern)}
+}
+
+@mastersthesis{ranjan2016incremental,
+  author = {Ranjan, Ashutosh Rishi},
+  title  = {An Incremental and Work-Saving Compiler for the Wybe Programming Langauge},
+  school = {The University of Melbourne - School of Computing and Information Systems},
+  year   = {2016}
+}
+
+@inproceedings{revilla2007correlations,
+  author    = {Revilla, Miguel A.},
+  booktitle = {The 18th IEEE International Symposium on Software Reliability (ISSRE '07)},
+  title     = {Correlations between Internal Software Metrics and Software Dependability in a Large Population of Small C/C++ Programs},
+  year      = {2007},
+  volume    = {},
+  number    = {},
+  pages     = {203-208},
+  doi       = {10.1109/ISSRE.2007.12}
+}
+
+@inproceedings{reynolds1974towards,
+  title        = {Towards a theory of type structure},
+  author       = {Reynolds, John C},
+  booktitle    = {Programming Symposium},
+  pages        = {408--425},
+  year         = {1974},
+  organization = {Springer}
+}
+
+@book{ritchie1988c,
+  title     = {The C programming language},
+  author    = {Ritchie, Dennis M and Kernighan, Brian W and Lesk, Michael E},
+  year      = {1988},
+  publisher = {Prentice Hall Englewood Cliffs}
+}
+
+@article{robinson1965machine,
+  author     = {Robinson, J. A.},
+  title      = {A Machine-Oriented Logic Based on the Resolution Principle},
+  year       = {1965},
+  issue_date = {Jan. 1965},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {12},
+  number     = {1},
+  issn       = {0004-5411},
+  url        = {https://doi.org/10.1145/321250.321253},
+  doi        = {10.1145/321250.321253},
+  journal    = {J. ACM},
+  month      = {jan},
+  pages      = {23–41},
+  numpages   = {19}
+}
+
+@inproceedings{rosen1988global,
+  author    = {Rosen, B. K. and Wegman, M. N. and Zadeck, F. K.},
+  title     = {Global Value Numbers and Redundant Computations},
+  year      = {1988},
+  isbn      = {0897912527},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/73560.73562},
+  doi       = {10.1145/73560.73562},
+  booktitle = {Proceedings of the 15th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages     = {12-27},
+  numpages  = {16},
+  location  = {San Diego, California, USA},
+  series    = {POPL '88}
+}
+
+@article{sandwell1971proposed,
+  author     = {Sandewall, Erik},
+  title      = {A Proposed Solution to the FUNARG Problem},
+  year       = {1971},
+  issue_date = {January 1971},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {17},
+  number     = {1},
+  issn       = {0163-5824},
+  url        = {https://doi.org/10.1145/1093420.1093422},
+  doi        = {10.1145/1093420.1093422},
+  abstract   = {This paper is a response to Joel Moses's recent paper, "The Function of FUNCTION in LISP, or ... ". We give some examples where the FUNARG feature of LISP 1. 5 is relative useful, and suggest a computationally efficient implementation of FUNARG. The idea in the proposal is to let a FUNARG-expression create indirect-addressing type bindings on the push-list for variables.},
+  journal    = {SIGSAM Bull.},
+  month      = jan,
+  pages      = {29-42},
+  numpages   = {14}
+}
+
+@inbook{schachte1997global,
+  author    = {Schachte, Peter},
+  booktitle = {Logic Programming: The 14th International Conference},
+  title     = {Global Variables in Logic Programming},
+  year      = {1997},
+  publisher = {MIT Press},
+  volume    = {},
+  number    = {},
+  pages     = {3-17},
+  doi       = {}
+}
+
+@misc{schachte2015wybe,
+  title   = {Wybe: A programming language supporting most of both declarative and imperative programming},
+  url     = {https://github.com/pschachte/wybe},
+  journal = {GitHub},
+  author  = {Schachte, Peter},
+  year    = {2015}
+}
+
+@article{shao2000efficient,
+  author     = {Shao, Zhong and Appel, Andrew W.},
+  title      = {Efficient and Safe-for-Space Closure Conversion},
+  year       = {2000},
+  issue_date = {Jan. 2000},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {22},
+  number     = {1},
+  issn       = {0164-0925},
+  url        = {https://doi.org/10.1145/345099.345125},
+  doi        = {10.1145/345099.345125},
+  abstract   = {Modern compilers often implement function calls (or returns) in two steps: first, a ``closure'' environment is properly installed to provide access for free variables in the target program fragment; second, the control is transferred to the target by a ``jump with arguments (for results).'' Closure conversion—which decides where and how to represent closures at runtime—is a crucial step in the compilation of functional languages. This paper presents a new algorithm that exploits the use of compile-time control and data-flow information to optimize funtion calls. By extensive closure sharing and allocation by 36% and memory fetches for local and global variables by 43%; and improves the already efficient code generated by an earlier version of the Standard ML of New Jersey compiler by about 17% on a DECstation 5000. Moreover, unlike most other approaches, our new closure-allocation scheme the strong safe-for-space-complexity rule, thus achieving good asymptotic space usage.},
+  journal    = {ACM Trans. Program. Lang. Syst.},
+  month      = jan,
+  pages      = {129-161},
+  numpages   = {33},
+  keywords   = {heap-based compilation, flow analysis, compiler optimization, closure representation, closure conversion, callee-save registers, space safety}
+}
+
+@article{somogyi1996execution,
+  title    = {The execution algorithm of mercury, an efficient purely declarative logic programming language},
+  journal  = {The Journal of Logic Programming},
+  volume   = {29},
+  number   = {1},
+  pages    = {17-64},
+  year     = {1996},
+  note     = {High-Performance Implementations of Logic Programming Systems},
+  issn     = {0743-1066},
+  doi      = {https://doi.org/10.1016/S0743-1066(96)00068-4},
+  url      = {https://www.sciencedirect.com/science/article/pii/S0743106696000684},
+  author   = {Zoltan Somogyi and Fergus Henderson and Thomas Conway},
+  abstract = {We introduce Mercury, a new purely declarative logic programming language designed to provide the support that groups of application programmers need when building large programs. Mercury's strong type, mode, and determinism systems improve program reliability by catching many errors at compile time. We present a new and relatively simple execution model that takes advantage of the information these systems provide, yielding very efficient code. The Mercury compiler uses this execution model to generate portable C code. Our benchmarking shows that the code generated by our implementation is significantly faster than the code generated by mature optimizing implementations of other logic programming languages.}
+}
+
+@techreport{steele1978rabbit,
+  title       = {Rabbit: A compiler for Scheme},
+  author      = {Steele Jr, Guy L},
+  volume      = {474},
+  year        = {1978},
+  institution = {MIT Artificial Intelligence Laboratory Technical Report}
+}
+
+@article{strachey2000continuations,
+  title     = {Continuations: A mathematical semantics for handling full jumps},
+  author    = {Strachey, Christopher and Wadsworth, Christopher P},
+  journal   = {Higher-order and symbolic computation},
+  volume    = {13},
+  number    = {1},
+  pages     = {135--152},
+  year      = {2000},
+  publisher = {Kluwer Academic Publishers}
+}
+
+@article{strachey2000fundamental,
+  title     = {Fundamental concepts in programming languages},
+  author    = {Strachey, Christopher},
+  journal   = {Higher-order and symbolic computation},
+  volume    = {13},
+  number    = {1},
+  pages     = {11--49},
+  year      = {2000},
+  publisher = {Springer}
+}
+
+@article{terei2010llvm,
+  author     = {Terei, David A. and Chakravarty, Manuel M.T.},
+  title      = {An LLVM Backend for GHC},
+  year       = {2010},
+  issue_date = {November 2010},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {45},
+  number     = {11},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/2088456.1863538},
+  doi        = {10.1145/2088456.1863538},
+  abstract   = {In the presence of ever-changing computer architectures, high-quality optimising compiler backends are moving targets that require specialist knowledge and sophisticated algorithms. In this paper, we explore a new backend for the Glasgow Haskell Compiler (GHC) that leverages the Low Level Virtual Machine (LLVM), a new breed of compiler written explicitly for use by other compiler writers, not high-level programmers, that promises to enable outsourcing of low-level and architecture-dependent aspects of code generation. We discuss the conceptual challenges and our backend design. We also provide an extensive quantitative evaluation of the performance of the backend and of the code it produces.},
+  journal    = {SIGPLAN Not.},
+  month      = {sep},
+  pages      = {109-120},
+  numpages   = {12},
+  keywords   = {llvm, ghc, backend}
+}
+
+@inproceedings{torrens2017hybrid,
+  author    = {Torrens, Paulo and Vasconcellos, Cristiano and Gon\c{c}alves, Junia},
+  title     = {A Hybrid Intermediate Language between SSA and CPS},
+  year      = {2017},
+  isbn      = {9781450353892},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3125374.3125377},
+  doi       = {10.1145/3125374.3125377},
+  abstract  = {Compiler theory is usually studied individually according to the paradigms of the programming language being compiled. As noted by Kelsey, though the static single assignment (SSA) form has been used as intermediate language for imperative language compilers, and some variant of a continuation passing style (CPS) lambda calculus has been used as intermediate language for functional language compilers, they are (almost) equivalent and it is possible to draw syntactic translations between them.This short paper aims to present an untyped intermediate language which may be interpreted as both SSA and CPS, in order to provide a common language for both imperative and functional compilers, as well to take advantage of optimizations designed for either one of the approaches. Finally, potential variants and research opportunities are discussed.},
+  booktitle = {Proceedings of the 21st Brazilian Symposium on Programming Languages},
+  articleno = {1},
+  numpages  = {3},
+  keywords  = {intermediate languages, continuation passing style, static single assignment},
+  location  = {Fortaleza, CE, Brazil},
+  series    = {SBLP 2017}
+}
+
+@inproceedings{wadler1989make,
+  title     = {How to make ad-hoc polymorphism less ad hoc},
+  author    = {Wadler, Philip and Blott, Stephen},
+  booktitle = {Proceedings of the 16th ACM SIGPLAN-SIGACT symposium on Principles of programming languages},
+  pages     = {60--76},
+  year      = {1989}
+}
+
+@inproceedings{wells1994typability,
+  title        = {Typability and type checking in the second-order/spl lambda/-calculus are equivalent and undecidable},
+  author       = {Wells, Joe B},
+  booktitle    = {Proceedings Ninth Annual IEEE Symposium on Logic In Computer Science},
+  pages        = {176--185},
+  year         = {1994},
+  organization = {IEEE}
+}
+
+@inproceedings{xu2017fusing,
+  author    = {Xu, Shijie and Bremner, David and Heidinga, Daniel},
+  title     = {Fusing Method Handle Graphs for Efficient Dynamic JVM Language Implementations},
+  year      = {2017},
+  isbn      = {9781450355193},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3141871.3141874},
+  doi       = {10.1145/3141871.3141874},
+  abstract  = { A Method Handle (MH) in JSR 292 (Supporting Dynamically Typed Languages on the JVM) is a typed, directly executable reference to an underlying method, constructor, or field, with optional method type transformations. Multiple connected MHs make up a Method Handle Graph (MHG), which transfers an invocation at a dynamic call site to real method implementations at runtime. Despite benefits that MHGs have for dynamic JVM language implementations, MHGs challenge existing JVM optimization because a) larger MHGs at call sites incur higher graph traversal costs at runtime; and b) JIT expenses, including profiling and compilation of individual MHs, increase along with the number of MHs. This paper proposes dynamic graph fusion to compile an MHG into another equivalent but simpler MHG (e.g., fewer MHs and edges), as well as related optimization opportunities (e.g., selection policy and inline caching). Graph fusion dynamically fuses bytecodes of internal MHs on hot paths, and then substitutes these internal MHs with the instance of the newly generated bytecodes at program runtime. The implementation consists of a template system and GraphJIT. The former emits source bytecodes for individual MHs, while the latter is a JIT compiler that fuses source bytecodes from templates on the bytecode level (i.e., both source code and target code are bytecodes). With the JRuby Micro-Indy benchmark from Computer Language Benchmark Game and JavaScript Octane benchmark on Nashorn, our results show that (a) the technique can reduce execution time of Micro-Indy and Octane benchmarks by 6.28% and 7.73% on average; b) it can speed up a typical MHG’s execution by 31.53% using Ahead-Of-Time (AOT) compilation; and (c) the technique reduces the number of MH JIT compilations by 52.1%. },
+  booktitle = {Proceedings of the 9th ACM SIGPLAN International Workshop on Virtual Machines and Intermediate Languages},
+  pages     = {18-27},
+  numpages  = {10},
+  keywords  = {just-in-time, object fusion, bytecode gen- eration, invokedynamic, method handle},
+  location  = {Vancouver, BC, Canada},
+  series    = {VMIL 2017}
+}

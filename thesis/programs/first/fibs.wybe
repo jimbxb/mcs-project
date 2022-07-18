@@ -1,0 +1,24 @@
+resource counter:int
+
+def fold_step(r:range) use !counter {
+    for ?i in r {
+        !step(i)
+    }
+}
+
+def step(i:int) use !counter {
+    !counter += fib(i)
+}
+
+def fib(n:int) = if { n <= 1 :: n | else :: fib(n - 1) + fib(n - 2) }
+
+do {
+    !read(?n)
+    while n > 0
+    
+    use counter in {
+        ?counter = 0
+        !fold_step(0..n)
+        !println(counter)
+    }
+}

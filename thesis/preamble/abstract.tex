@@ -1,0 +1,11 @@
+\abstract{
+  Higher-order programming is a paradigm marked by increased expressiveness and greater modularisation. With higher-order programming, functions and procedures are promoted to first-class citizens of the language, allowing for such increased expressiveness. In this thesis, we introduce a higher-order extension to the Wybe language. 
+  
+  Wybe is a multi-paradigm language that exists as both an imperative and declarative language, and features the strong, static, guarantees of many declarative languages, while featuring many imperative constructs. Features that are common in logic programming languages, such as a mode system, are also present in the Wybe language. One notable feature of the language is the resource system. Resources are akin to global variables of imperative languages, however, their usage is restricted to attain declarative properties. Resources have not been explored yet in a higher-order context, and with the semantics we explore for higher-order resources, we introduce a novel implementation strategy that makes use of global variables. 
+
+  Along with higher-order terms, global variables are also required in the intermediate representation used within the Wybe compiler, LPVM. We extend LPVM to support higher-order terms and global variables. Further, we extend the current optimisations of LPVM and introduce novel optimisations to reduce the manipulation of global variables where possible.
+
+  We also investigate the effects of the extensions to the language and intermediate representation. We compare the execution times and program size of the current and extended resource implementation, and the use of first-order and higher-order code. We show that the performance is generally comparable to the performance of the current implementation of the language, with speed-ups and slowdowns in certain cases.
+}
+
+\clearpage

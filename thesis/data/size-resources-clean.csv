@@ -1,0 +1,13 @@
+prog,class,obj,exe,sloc
+Fibs,Parameters,69808,18720,19
+Fibs,Globals,75128,19088,19
+Knapsack,Parameters,257584,19128,52
+Knapsack,Globals,268680,19496,52
+Mandlebrot,Parameters,233576,24064,32
+Mandlebrot,Globals,223040,24384,32
+N Body,Parameters,395848,24288,71
+N Body,Globals,385536,24608,71
+Sonar Sweep,Parameters,100720,19024,31
+Sonar Sweep,Globals,107496,19400,31
+Sort,Parameters,464832,29480,134
+Sort,Globals,463736,29800,134

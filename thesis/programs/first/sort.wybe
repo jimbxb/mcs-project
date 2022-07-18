@@ -1,0 +1,146 @@
+module ints {
+    def sort(xs:list(int), ?sorted:list(int)) {
+        ?sorted = []
+        for ?x in xs {
+            insert(x, !sorted)
+        }
+    }
+
+    def insert(x:int, !xs:list(int)) {
+        if { [?head | ?rest] = xs ::
+            if { x <= head :: 
+                ?xs = [x | xs]
+            | else ::
+                insert(x, !rest)
+                ?xs = [head | rest]
+            }
+        | else :: 
+            ?xs = [x]
+        }
+    }
+    
+    pub def read_sort_print(n:int) use !io {
+        ?xs = []
+        for ?i in 0..n {
+            !read(?x)
+            ?xs = [x | xs]
+        }
+        for ?x in sort(xs) {
+            !print(x)
+            !print(", ")
+        }
+        !nl
+    }
+}
+
+module floats {
+    def sort(xs:list(float), ?sorted:list(float)) {
+        ?sorted = []
+        for ?x in xs {
+            insert(x, !sorted)
+        }
+    }
+
+    def insert(x:float, !xs:list(float)) {
+        if { [?head | ?rest] = xs ::
+            if { x <= head :: 
+                ?xs = [x | xs]
+            | else ::
+                insert(x, !rest)
+                ?xs = [head | rest]
+            }
+        | else :: 
+            ?xs = [x]
+        }
+    }
+    
+    pub def read_sort_print(n:int) use !io {
+        ?xs = []
+        for ?i in 0..n {
+            !read(?x)
+            ?xs = [x | xs]
+        }
+        for ?x in sort(xs) {
+            !print(x)
+            !print(", ")
+        }
+        !nl
+    }
+}
+
+module strings {
+    def sort(xs:list(string), ?sorted:list(string)) {
+        ?sorted = []
+        for ?x in xs {
+            insert(x, !sorted)
+        }
+    }
+
+    def insert(x:string, !xs:list(string)) {
+        if { [?head | ?rest] = xs ::
+            if { x <= head :: 
+                ?xs = [x | xs]
+            | else ::
+                insert(x, !rest)
+                ?xs = [head | rest]
+            }
+        | else :: 
+            ?xs = [x]
+        }
+    }
+    
+    pub def read_sort_print(n:int) use !io {
+        ?xs = []
+        for ?i in 0..n {
+            !read(?x)
+            ?xs = [x | xs]
+        }
+        for ?x in sort(xs) {
+            !print(x)
+            !print(", ")
+        }
+        !nl
+    }
+}
+
+module chars {
+    def sort(xs:list(char), ?sorted:list(char)) {
+        ?sorted = []
+        for ?x in xs {
+            insert(x, !sorted)
+        }
+    }
+
+    def insert(x:char, !xs:list(char)) {
+        if { [?head | ?rest] = xs ::
+            if { x <= head :: 
+                ?xs = [x | xs]
+            | else ::
+                insert(x, !rest)
+                ?xs = [head | rest]
+            }
+        | else :: 
+            ?xs = [x]
+        }
+    }
+    
+    pub def read_sort_print(n:int) use !io {
+        ?xs = []
+        for ?i in 0..n {
+            !read(?x)
+            ?xs = [x | xs]
+        }
+        for ?x in sort(xs) {
+            !print(x)
+            !print(", ")
+        }
+        !nl
+    }
+}
+
+!read(?n)
+!read(_:string) 
+!chars.read_sort_print(n)
+!strings.read_sort_print(n)
+!floats.read_sort_print(n)
+!ints.read_sort_print(n)

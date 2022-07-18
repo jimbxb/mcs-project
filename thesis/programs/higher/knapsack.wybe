@@ -1,0 +1,61 @@
+type item {
+    pub item(weight:int, value:int)
+}
+
+resource sack:list(int)
+
+def init_sack(capacity:int) use ?sack {
+    if { capacity <= 0 :: 
+        ?sack = [0]
+    | else ::
+        !init_sack(capacity - 1)
+        ?sack = [0 | sack]
+    }
+}
+
+def knapsack(capacity:int, item:item) use !sack {
+    !map(add_item(item), 0..(capacity + 1), ?sack)
+}
+
+def add_item(item:item, weight:int, ?cost:int) use sack {
+    ?cost = 0
+    if { sack[weight] = ?cost ::
+        if { sack[weight - item^weight] = ?prev_cost :: 
+            ?cost = max(item^value + prev_cost, cost)
+        }
+    }
+}
+
+def map(f:{resource}(X), xs:list(X)) {
+    if { xs = [?x | ?xs] ::
+        !f(x)
+        !map(f, xs)
+    }
+}
+
+def map(f:{resource}(int, ?X), r:range, ?xs:list(X)) {
+    ?xs = []
+    for ?i in r {
+        !f(i, ?x)
+        ?xs = [x | xs]
+    }
+    ?xs = reverse(xs)
+}
+
+use sack in {
+    !read(?capacity)
+    !read(?n)
+
+    ?items = []
+    for _ in 0..n {
+        !read(?weight)
+        !read(?value)
+        ?items = [item(weight, value) | items]
+    }
+    
+    !init_sack(capacity)
+    !map(knapsack(capacity), items)
+    if { sack[capacity] = ?solution :: 
+        !println(solution)
+    }
+}

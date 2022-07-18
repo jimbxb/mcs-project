@@ -1,0 +1,81 @@
+type body {
+    pub body(x:float, y:float, vx:float, vy:float, m:float)
+
+    pub def print(body:_) use !io {
+        !print("(")
+        !print(body^x)
+        !print(", ")
+        !print(body^y)
+        !print("); ")
+    }
+}
+
+def map_print(bodies:list(body)) use !io {
+    if { bodies = [?body | ?rest] ::
+        !print(body)
+        !map_print(rest)
+    }
+}
+
+def step(dt:float, !bodies:list(body)) {
+    map_update_v(dt, bodies, !bodies)
+    map_update_pos(dt, !bodies)
+}
+
+def map_update_v(dt:float, all:list(body), !bodies:list(body)) {
+    if { bodies = [?body | ?rest] ::
+        fold_update_v(dt, all, !body)
+        map_update_v(dt, all, !rest)
+        ?bodies = [body | rest]
+    }
+}
+
+def fold_update_v(dt:float, all:list(body), !body:body) {
+    if { all = [?other | ?all] ::
+        update_v(dt, other, !body)
+        fold_update_v(dt, all, !body)
+    }
+}
+
+def update_v(dt:float, other:body, !body:body) {
+    body(?x1, ?y1, ?vx, ?vy, ?m1) = body
+    body(?x2, ?y2, _, _, ?m2) = other
+    ?dx = x1 - x2
+    ?dy = y1 - y2
+    ?d2 = dx * dx + dy * dy
+    if { d2 ~= 0.0 ::
+        ?mag = m2 * dt * (d2 ** -1.5)
+        ?body = body(x1, x2, vx - dx * mag, vy - dy * mag, m1)
+    }
+}
+
+def map_update_pos(dt:float, !bodies:list(body)) {
+    if { bodies = [?body | ?rest] ::
+        update_pos(dt, !body)
+        map_update_pos(dt, !rest)
+        ?bodies = [body | rest]
+    }
+}
+
+def update_pos(dt:float, !body:body) {
+    body(?x, ?y, ?vy, ?vx, ?m) = body
+    ?body = body(x + dt * vx, y + dt * vy, vx, vy, m)
+}
+
+?bodies = [
+    body(15.37969711485, -25.91931460998, # Neptune 
+         0.97909073224, 0.59469899864, 0.00203368686),
+    body(12.89436956213, -15.11115140169, # Uranus
+         1.08279100644, 0.86871301817, 0.00172372405),    
+    body(8.34336671824, 4.12479856412, # Saturn
+         -1.01077434618, 1.82566237123, 0.01128632613),
+    body(4.84143144246, -1.16032004402, # Jupiter
+         0.60632639299, -0.02521836165, 0.03769367487),
+    body(0.0, 0.0, 0.0, 0.0, 39.4784176044) # Sun
+]
+
+!read(?n)
+for _ in 0..n { 
+    step(0.01, !bodies) 
+}
+!map_print(bodies)

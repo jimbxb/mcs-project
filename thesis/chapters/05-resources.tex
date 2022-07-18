@@ -1,0 +1,229 @@
+\clearpage
+
+\def\chaptertitle{Transformations of Resources}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:resources}
+
+This chapter introduces the transformations we require in transforming resources into lower-level constructs. The existing transformation in the Wybe compiler parameterises resoruces, transforming resources into formal parameters and arguments.
+
+With the extended, higher-order, semantics we propose for the Wybe language in \cref{sec:ss-higher-order-resources}, we provide an implementation strategy that performs a second transformation pass, transforming resources into global variables. Finally, we discuss a limitation of the globalisation transformation and a potential resolution to the discussed limitation.
+
+\section{Parameterisation of Resources}
+\label{sec:parameter-resource-transformation}
+
+While resources in the Wybe language are passed implicitly by name, the intermediate representation used within the Wybe compiler does not support a by-name parameter passing mechanism, providing only the usual positional parameter passing mechanism. As such, the Wybe compiler must transform a procedure and all resourceful procedure calls to follow a positional parameter passing scheme. To transform resources in a Wybe program into regular parameters, the compiler performs the translation outlined in \cref{fig:resource-transformation}. 
+
+Throughout this transformation, we impose an ordering of resources. We define an ordering of resources by module first and then by name. This ordering is used to ensure that resources are consistently passed are arguments in the same order as the corresponding parameters.
+
+In \cref{fig:resource-transformation} the $R_{proc}$ rule transforms a procedure's resources into parameters, by appending the list of resources in canonical order to the list of parameters. 
+
+\begin{figure}[ht]
+  \centering
+  \begin{align*}
+    R_{proc}\bbrackets*{\mathtt{def\ } proc(params) \mathtt{\ use\ } res\ \{b\}} &= \mathtt{def\ } proc(params + res)\mathtt{\ use\ } res\ \{ R_{stmts}\bbrackets*{b}\} \\\\
+    R_{stmts}\bbrackets*{[\ ]} &= [\ ] \\
+    R_{stmts}\bbrackets*{[stmt \mid stmts]} &= R_{stmt}\bbrackets*{stmt} + R_{stmts}\bbrackets*{stmts} \\\\
+    R_{stmt}\bbrackets*{proc(args)} &= [proc(args + \mathop{resources}(proc))] \\
+    R_{stmt}\bbrackets*{\mathtt{use}\ r_1, \dots, r_n\ \mathtt{in}\ b} &= [move(r_i, ?tmp_i), \dots, move(r_n, ?tmp_n)] \\
+     &\phantom{=}\ + R_{stmts}\bbrackets*{b} + \\
+     &\phantom{=}\ \, [move(tmp_1, ?r_1), \dots, move(tmp_n, ?r_n)] \\
+    R_{stmt}\bbrackets*{other} &= R_{nested}\bbrackets*{other}
+  \end{align*}
+  \caption{Parameterisation of resources, transforming resources in a procedure into formal parameters and arguments.}
+  \label{fig:resource-transformation}
+\end{figure}
+
+A sequence of statements, represented by a Prolog-style list, $[stmt_1 | [ stmt_2 | ...]]$, and terminated by an empty sequence, $[\ ]$, transforms each statement in sequence. As each statement may be transformed into numerous statements, the resultant sequence of statements, $R_{stmt}\bbrackets*{stmt}$ is appended to the transformed result of the remaining statements.
+
+Two key statements must be transformed to allow for procedures to pass resources explicitly. The first is a (resourceful) procedure call. Each procedure call is transformed by adding explicit arguments. These resource arguments follow the ordering defined for resources, ensuring that the positions of all resource arguments are consistent with the resource parameters as defined previously.
+
+The other statement that must be transformed is the \texttt{use} block. Semantically, a \texttt{use} block must obey two properties: the value of each used resource must be identical directly before and after the \texttt{use} block, and any resource previously not in-scope is considered in-scope for the duration of the block. To ensure the first property, each resource that is bound immediately before the \texttt{use} block is assigned to a temporary variable. After the \texttt{use} block. These temporary variables are re-assigned to the resource variable. This ensures that the values of the resources are identical immediately before and after the block. The second property is irrelevant to this transformation due to the scope and binding state of resources being checked before this transformation. 
+
+All other statements do not require any special transformations, only requiring the transformation of all nested statements. For the sake of brevity in \cref{fig:resource-transformation}, these transformations have been omitted, replaced by the $R_{stmt}\bbrackets*{other}$ transformation.
+
+\section{Resources as Global Variables}
+\label{sec:resources-as-globals}
+
+In this section, we detail the implementation strategy for the proposed higher-order resource semantics outlined in \cref{sec:ss-higher-order-resources}. As resources may be used by some procedure while simultaneously being used by some higher-order term, the compiler is no longer able to transform resources into arguments and parameters of higher-order calls. This is ultimately due to higher-order terms lacking an annotation of exactly which resources the term may use, but only some collection of unknown resources. As the compiler does not know which resources the terms may use, the compiler cannot pass the resources as positional arguments.
+
+However, we can overcome this issue with a uniform name that can be used to access the current value of the resource. This name should be accessible in any given context, being shared across all contexts, be it in a higher-order call or a regular procedure body. This is exactly the interface a global variable provides: a single, uniform name, that is accessible in any context.
+
+With global variables available in any context, global variables are less constrained than desired for resources. As such, in the transformation of resources from formal parameters and arguments to global variables is outlined in \cref{ssec:global-resource-transformation}, we must constrain their usage to be aligned with that of the represented resources. This also ensures that the semantics of a globalised program is maintained.
+
+To prevent unwarranted manipulation of these global variables from the programmer, this transformation is transparent for a programmer, with identical semantics for a first-order program. The programmer can still manipulate the resource as previously possible.
+
+\subsection{Globalisation of Resources}
+\label{ssec:global-resource-transformation}
+
+Minor changes must be made to the existing resource transformation as outlined in \cref{sec:parameter-resource-transformation}. Due to expressions now possibly containing statements in anonymous procedures, the transformation must also perform any transformations to those anonymous procedures as is performed for any regular procedure. \texttt{use} blocks were omitted after the prior transformation, however, due to their usage in the globalisation transformation, are retained after the transformation.
+
+\begin{figure}[ht]
+  \centering
+  \begin{align*}
+    R_{stmt}\bbrackets*{proc(args)} &= [proc(R_{nested}\bbrackets*{args} + \mathop{resources}(proc))] \\
+    R_{stmt}\bbrackets*{\mathtt{use}\ r_1, \dots, r_n\ \mathtt{in}\ b} &= [move(r_i, ?tmp_i), \dots, move(r_n, ?tmp_n)] \\
+      &\phantom{= }\ + [\mathtt{use}\ r_1, \dots, r_n\ \mathtt{in}\ R_{stmts}\bbrackets*{b}] \\
+      &\phantom{= }\ + [move(tmp_1, ?r_1), \dots, move(tmp_n, ?r_n)]
+  \end{align*}
+  \caption{Modifications to the transformation of resources into parameterised resources.}
+  \label{fig:modified-resource-transformation}
+\end{figure}
+
+We are unable to omit the transformation pass for parameterised resources due to other passes within the compiler being present that rely on the parameterisation transformation pass being performed, such as a pass that checks for the validity of linear types~\cite{pierce2002types} in a Wybe program. With the modified transformations of resources in place and other passes being performed appropriately, the compiler is now able to transform a Wybe program with parameterised resources into a Wybe program with globalised resources, as outlined in \cref{fig:global-transformation}. We denote a reference to a global variable $g$ as the term $\angles{g}$.
+
+\begin{figure}[htb]
+  \centering
+  \begin{adjustwidth}{-2.5em}{-2.5em}
+    \centering
+    \begin{align*}
+      G_{proc}\bbrackets*{\mathtt{def\ } proc(params) \mathtt{\ use\ } res\ \{b\}} &= \mathtt{def\ } proc(params - res)\mathtt{\ use\ } res\ \{ b^\prime \}
+      \shortintertext{where $\begin{alignedat}[t]{2}
+        ins &= \set{ r \in res \mid flow(r) = in} \\
+        b^\prime &= G_{stmts}^{res, \varnothing}\bbrackets*{\mathtt{use\ } ins \mathtt{\ in\ } b}
+      \end{alignedat}$} \\
+      G_{stmts}^{r, t}\bbrackets*{[\ ]} &= [\ ] \\
+      G_{stmts}^{r, t}\bbrackets*{[stmt \mid stmts]} &= G_{stmt}^{r, t}\bbrackets*{stmt} + G_{stmts}^{r, t}\bbrackets*{stmts} \\\\
+      G_{stmt}^{r, t}\bbrackets*{proc(args)} &= loads + [proc(args^\prime)] + stores 
+      \shortintertext{where $(args^\prime, loads, stores) = G_{args}^{r, t}\bbrackets*{args - resources(proc)}$}
+      G_{stmt}^{r, t}\bbrackets*{\mathtt{if}\set{cond\ \mathtt{ :: }\ thn\ \mathtt{\mid\ else\ ::\ } els}} &= [\mathtt{load}(\angles{r_i}, ?tmp_i)\mid r_i \in r] \\
+        &\phantom{=\ } + [\mathtt{if}\ \begin{aligned}[t]
+          & \lbrace\ G_{stmt}^{r, t}\bbrackets*{cond}\ \mathtt{ :: }\ G_{stmts}^{r, t}\bbrackets*{thn} \\
+          & \mathtt{\mid\ else\ ::\ } [\mathtt{store}(tmp_i, \angles{r_i})\mid r_i \in r] \\
+          & \phantom{\mathtt{\mid\ else\ ::\ }} + G_{stmts}^{r, t}\bbrackets*{els}\rbrace]
+        \end{aligned} \\
+      G_{stmt}^{r, t}\bbrackets*{\mathtt{use}\ r_1, \dots, r_n\ \mathtt{in}\ b} &= [\mathtt{load}(\angles{r_1}, ?tmp_1), \dots, \mathtt{load}(\angles{r_n}, ?tmp_n)] \\
+        &\phantom{= }\ + G_{stmts}^{r \cup \set{r_1, \dots, r_n},\ t \cup \set{r_i \mapsto tmp_i\ \mid\ r_i \notin t}}\bbrackets*{b} \\
+        &\phantom{= }\ + [\mathtt{store}(\angles{r_1}, tmp_1), \dots, \mathtt{store}(\angles{r_n}, tmp_n)] \\
+      G_{stmt}^{r, t}\bbrackets*{\mathtt{do}\set{body}} &= G_{stmts}^{r, \varnothing}\bbrackets*{body} \\
+      G_{stmt}^{r, t}\bbrackets*{\mathtt{break}} &= [\mathtt{store}(t[g], \angles{g}) \mid g \in t] + [\mathtt{break}] \\
+      G_{stmt}^{r, t}\bbrackets*{\mathtt{next}} &= [\mathtt{store}(t[g], \angles{g}) \mid g \in t] + [\mathtt{next}] \\
+      G_{stmt}^{r, t}\bbrackets*{other} &= G_{nested}^{r, t}\bbrackets*{other} \\\\
+      G_{args}^{r, t}\bbrackets*{args} &= (G_{nested}^{r, t}\bbrackets*{args}, G_{load}^r\bbrackets*{args}, G_{store}^r\bbrackets*{args})\\\\
+      G_{load}^r\bbrackets*{v} &= [\mathtt{load}(\angles{v}, ?v) \mid v \in args,\ v \in r,\ flow(v) \neq out] \\
+      G_{store}^r\bbrackets*{v} &= [\mathtt{store}(v, \angles{v}) \mid v \in args,\ v \in r,\ flow(v) \neq in]
+    \end{align*}
+  \end{adjustwidth}
+  \caption{Globalisation of resources, transforming parameterised resources into global variables.}
+  \label{fig:global-transformation}
+\end{figure}
+
+To transform a procedure, the transformation begins by removing the parameters that correspond to resources as introduced by the parameterisation transformation. The procedure's body, a list of statements, is also transformed noting the set of resources, $res$, that are currently in scope for the procedure body. In this transformation, it is assumed that resources are appropriately in-scope and bound, a property that is achieved after type analysis. To ensure that the value of an in-flowing resource is not modified after a call to the procedure, an additional \texttt{use} block is introduced for each in-flowing resource, ensuring that the value is unchanged due to the transformation of \texttt{use} blocks .
+
+There are two parts to transforming a procedure call. First, each argument that corresponds to a resource argument, as was introduced in the resource parameterisation transformation (\cref{sec:parameter-resource-transformation}), is removed. These arguments are no longer necessary to follow the new interface to which this transformation conforms. 
+
+Following the removal of resource arguments, the non-resource arguments are transformed with the $G_{args}^r$ transformation. Each argument that is a variable may introduce an additional statement to either \texttt{load} or \texttt{store} some resource. If the variable is a resource variable for some resource $v \in r$ that is currently in scope, such instructions are introduced depending on the flow of the argument. Where some argument flows in (as an input or in/output, \textit{i.e.}, not an output), the value of the global variable must be loaded before ($G_{load}^r$). If the flow of the argument flows out (as an output or in/output, \textit{i.e.}, not an input), then the argument must be stored after the procedure call ($G_{store}^r$). Each \texttt{load} and \texttt{store} instruction loads the global variable into the variable $v$ or stores the value of $v$ into the global variable, respectively.
+
+If some procedure that modifies some resource fails, the value of the resource should be unmodified if the procedure fails, as occurs with parameterised resources. This applies to conditional statements also. If the condition of some conditional statement fails, then the value of the resource must be restored to the value before the condition is executed before continuing with the else branch. 
+
+The transformation achieves this by, for each in-scope resource, $r_i \in r$, saving the value of the resource's global variable in some fresh variable, $tmp_i$, using a $\mathtt{load}(\angles*{r_i}, ?tmp_i)$ instruction. These instructions are inserted before each conditional statement. The fresh variables, $tmp_i$, are then used to restore the value of each global variable prior to the statements in the else branch of the conditional statement with a prepended $\mathtt{store}(tmp_i, \angles*{r_i})$ instruction for each $r_i$. These instructions are only necessary where the condition may modify some resource, in which case \texttt{load} and \texttt{store} instructions are only necessary for resources that may be overwritten in the condition.
+
+For each resource marked in the \texttt{use} block, $r_i$, a $\mathtt{load}(\angles*{r_i}, ?tmp_i)$ instruction stores the current value of the global variable into a fresh variable, $tmp_i$. Each now in scope resource is added to the set of in-scope resources in the transformation of the nested statements of the \texttt{use} block. After the transformed nested statements, a $\mathtt{store}(tmp_i, \angles*{r_i})$ instruction is added for each resource, $r_i$ in the \texttt{use} block, restoring the value of the global variable to the value prior to the \texttt{use} block. In performing this transformation, the value of resources in the global variables immediately before and after the \texttt{use} blocks remain unchanged, even if the value of some global variable is trampled inside the \texttt{use} block. 
+
+The \texttt{break} and \texttt{next} instructions are able to modify the course of execution of a procedure, jumping to the end and start of a \texttt{do} loop, respectively. It is possible for these instructions to be contained within a \texttt{use} block that is inside their respective \texttt{do} loop. When this occurs, the value of a resource's global variable is required to be restored to that of before the \texttt{use} block. This property is achieved through the insertion of $\mathtt{store}(t[g], \angles*{g})$ instructions for each resource, $g$, before all \texttt{break} and \texttt{next} instructions. Only the resources that have been previously saved from a \texttt{load} instruction inside the loop, and only the outermost such fresh variable, $t[g]$, is required to be restored. The current values of the resources (and corresponding fresh variables) to be restored are stored in the $t$ map. The map, $t$, is emptied in the recursive transformation of a \texttt{do} loop's body, and added to for each \texttt{use} block, adding only temporary variables for each resource $r_i \notin t$. This ensures that only the outermost temporary variable is restored upon a \texttt{break} or \texttt{next} statement, as this is the value that must be restored.
+
+\begin{figure}[bp]
+  \setcaptiontype{lstlisting}
+  \centering
+  \begin{minipage}[t]{\textwidth}
+    \begin{lstlisting}
+resource counter:int
+
+def tick() use !counter {
+    ?counter = counter + 1
+}
+
+def tick_print() use counter, !io {
+    !tick()
+    !print(counter)
+}
+\end{lstlisting}
+    \subcaption{Before parameterisation.}
+  \end{minipage}
+  \centering
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}
+resource counter:int
+
+def tick([@!counter@]) {
+
+    ?counter = counter + 1
+
+}
+
+def tick_print([@counter, !io@]) {
+    
+    !tick([@!counter@])
+    
+    !print(counter, [@!io@])
+
+}
+\end{lstlisting}
+    \subcaption{After parameterisation.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}[numbers=none]
+resource counter:int
+
+def tick {
+    [@load(<counter>, ?counter)@]
+    ?counter = counter + 1
+    [@store(counter, <counter>)@]
+}
+
+def tick_print {
+    [@load(<counter>, ?tmp1)@]
+    !tick()
+    [@load(<counter>, ?counter)@]
+    !print(counter)
+    [@store(tmp1, <counter>)@]
+}
+\end{lstlisting}
+    \subcaption{After globalisation.}
+  \end{minipage}
+  \caption[Example of the transformation progression of resources.]{Example of the transformation progression of resources. The changes made after each transformation are highlighted in \textcolor{rred}{red}.}
+  \label{lst:resource-progression}
+\end{figure}
+
+All other statements and any nested expressions also must be transformed accordingly, transforming nested statements and variables. These are obfuscated in \cref{fig:global-transformation} with the $G_{stmt}^r\bbrackets*{other}$ and $G_{nested}^r$ rules for the sake of brevity. 
+
+An example of the progression of resources through the various transformations is provided in \cref{lst:resource-progression}, exemplifying the transformation of resources into formal parameters and arguments, and finally into global variables. 
+
+\subsection{Limitations of Globalisation}
+\label{ssec:globalisation-limitations}
+
+We are aware of one limitation of the implementation strategy of transforming resources into global variables. We exemplify this limitation with the use of an example in \cref{lst:globals-limitation-wybe}, where the globalisation fails to adhere to the desired semantics. 
+
+\begin{lstlisting}[
+  caption={Example where the globalisation implementation strategy invalidates the desired semantics.},
+  label={lst:globals-limitation-wybe},
+  float=ht
+]
+resource res:int = 0
+
+def foo(f:{resource}()) {
+    if { !bar(f) :: pass }
+}
+
+def {test} bar(f:{resource}()) {
+    !f()
+    fail
+}
+
+?f = {resource}{ ?res = 1 }
+
+# before:   res = 0
+!foo(f)
+# expected: res = 0
+# after:    res = 1
+\end{lstlisting}
+
+In \cref{lst:globals-limitation-wybe}, the term \texttt{f} uses the \texttt{res} resource, modifying the value of the resource to be \texttt{1}. The procedure \texttt{foo} is called with \texttt{f} as an argument. Prior to this call, the \texttt{res} resource is initialised to the value of \texttt{0}. Inside the call to \texttt{foo}, \texttt{f} is passed as an argument to the \texttt{bar} procedure. 
+
+The call to \texttt{bar} should only propagate changes to resources if the condition succeeds. However, investigating the implementation of \texttt{bar}, we see that the procedure must always fail (\texttt{fail}). This failure occurs after the higher-order call to \texttt{f} is performed, possibly modifying some resource.
+
+The call to \texttt{f} does modify the resource, as the argument to this procedure re-assigns the resource to \texttt{1}. As \texttt{bar} fails, the value of any resource modified in \texttt{bar} should be restored back to their prior values. However, due to the semantics we defined for resources in a higher-order context, we cannot be certain which resources must be restored. One might imagine that the \texttt{bar} procedure is defined in some distinct module that has no knowledge that the \texttt{res} resource exists. As the value of \texttt{res} does not get restored to the value prior to the call to \texttt{bar}, this change propagates outside the call to \texttt{foo}. In effect, this means that the value of \texttt{res} is now \texttt{1} after the call to \texttt{foo}.
+
+In Prolog and other logic programming languages, the standard solution to backtracking state changes on failure is using a \texttt{trail}~\cite{appleby1988garbarge}. A trail is a separate stack that is used to track state changes of variables that are to be reset on failure. Upon failure, the trail is traversed backwards, restoring the state of any variables before the failing call. In future work, we may be able to resolve this limitation of globalisation with the use of a similar structure. This would require saving the state of global variables before entering a non-deterministic call, and restoring the state in the case that the call fails.

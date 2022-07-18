@@ -1,0 +1,39 @@
+type complex {
+    pub `~`(i:float, j:float) 
+
+    pub def (x:_ + y:_):_ = x^i + y^i ~ x^j + y^j
+
+    pub def (x:_ * y:_):_ = x^i * y^i - x^j * y^j ~ x^i * y^j + x^j * y^i
+
+    pub def square_magnitude(c:_):float = c^i * c^i + c^j * c^j
+}
+
+def {test} iter(c:complex, !z:complex) {
+    ?z = z * z + c
+    square_magnitude(z) <= 4.0
+}
+
+def {test} repeat_iter(n:int, c:complex, x:complex) {
+    if { n > 0 :: 
+        iter(c, !x)
+        repeat_iter(n - 1, c, x)
+    }
+}
+
+!read(?n)
+!read(?d)
+
+?j = -2.0
+do { 
+    while j < 2.0
+    ?i = -2.0
+    do { 
+        while i < 2.0
+        ?c = (i ~ j)
+        repeat_iter(n, c, 0.0 ~ 0.0, ?in_set)
+        !print(if { in_set :: "* " | else :: "  " })
+        !i += d
+    }
+    !j += d
+    !nl
+}

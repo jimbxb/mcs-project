@@ -1,0 +1,294 @@
+\clearpage
+
+\def\chaptertitle{Translation to LPVM and Extensions of LPVM}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:lpvm-conversion}
+
+This chapter details the transformation process from a Wybe AST program into the LPVM intermediate representation. The transformation occurs in two parts, being an \textit{unbranching} pass that constrains the AST into a form that can then be translated into LPVM following a variable numbering pass. While these processes are largely unchanged, we introduce the extensions we require for higher-order programming in detail. 
+
+We also introduce the LPVM intermediate representation, introducing the extensions to the language required for higher-order programming and global variables. 
+
+\section{Unbranching}
+\label{sec:unbranching}
+
+\textit{Unbranching} is a transformation of a Wybe procedure into a set of mutually recursive, deterministic, procedures. These procedures are constrained to closely align to the structure of LPVM, allowing for ease of translation from a transformed procedure into LPVM. 
+
+The procedures produced by the transformation have a simple form, being composed of a list of deterministic procedure calls, terminated by an optional conditional statement. The branches of this conditional statement have the same form, with further optional terminating conditional statements.
+
+This transformation is performed after resources have been transformed into their final representation, now as global variables. This ensures that constructs such as \texttt{use} blocks have been replaced by constructs that can be readily translated directly into LPVM. Of the constructs that do remain, some cannot readily be translated into LPVM, namely non-deterministic calls, non-tail conditional statements, and loops. We do not present this transformation formally as the transformation is largely unchanged, however, the extensions required with higher-order are important regarding future transformations.
+
+The transformation produces a series of additional procedures, called \textit{continuations}. These continuations differ from the continuations found in CPS~\cite{appel1989continuation}, where in CPS they are higher-order calls, however, here they also occur at the tail position. Continuations are created after each \texttt{test} procedure call, non-tailing conditional statement, and loops. Continuations contain the statements that are to be performed after each such construct. Each continuation is na\"ively constructed with inputs being all in-scope variables and all outwards-flowing parameters.
+
+Unbranching a sequence of statements is performed in reverse. In reverse, the transformation maintains a list of already unbranched statements and a list of alternative statements that are to be executed in the case that some condition fails. These alternative statements are initially an assignment of \texttt{false} to a fresh variable in the case the unbranched procedure is a \texttt{test} procedure and empty otherwise. This fresh variable is added to the end of the list of formal parameters as an output, de-reifying the procedure into a \texttt{det} procedure.
+
+Calls, both first-order and higher-order are unbranched similarly. In the case of a \texttt{test} call determinism, we transform this statement into a de-reified \texttt{det} call and tailing conditional branch. The statement is augmented with an additional outwards-flowing Boolean-typed argument, which is then used as the test in the condition, with the \textit{then} and \textit{else} branches containing the list of unbranched and alternative statements, respectively.
+
+\begin{figure}[ht]
+  \setcaptiontype{lstlisting}
+  \begin{minipage}[t]{0.48\textwidth}
+    \begin{lstlisting}
+def count_down(x) {
+    do {
+
+
+        # sugared test
+        if { x > 0 :: 
+    
+            break
+        | else ::
+            println(x)
+            ?x = x - 1
+    
+        }
+    }
+
+
+    println("done")
+}
+\end{lstlisting}
+    \subcaption{Before unbranching.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{0.48\textwidth}
+    \begin{lstlisting}[numbers=none]
+def count_down(x) {
+    [@next(x)@]
+}
+
+[@def next(x) {@]
+    `>`(x, 0, ?tmp) # de-sugared
+    if { tmp :: 
+        [@break(x)@]
+    | else :: 
+        println(x)
+        ?x = x - 1
+        [@next(x)@]
+    }
+[@}@]
+
+[@def break(x) {@]
+    println("done")
+[@}@]
+\end{lstlisting}
+    \subcaption{After unbranching.}
+  \end{minipage}
+  \caption[Example of an unbranched procedure.]{Example of an unbranched procedure. Type annotations are omitted for the sake of brevity, and additional procedure calls and procedure definitions are highlighted in \textcolor{rred}{red}.}
+  \label{lst:unbranching}
+\end{figure}
+
+Both \texttt{terminal} and \texttt{failing} calls are unbranched similarly, with the following unbranched being discarded. In the case of a \texttt{failing} procedure, however, the alternative statements are placed after the call. \texttt{det} calls are otherwise unchanged, with the list of unbranched statements following.
+
+Loops are unbranched by producing two fresh continuation procedures, \textit{next} and \textit{break}, as seen in \cref{lst:unbranching}. The \textit{next} procedure is a continuation of all statements contained within the loops. The \textit{break} and \textit{next} procedures are used to create mutually recursive procedures that are equivalent, semantically, to the loop and following statements.
+
+The \textit{next} procedure is called in place of the loop as a tail call in the unbranched procedure and replaces \texttt{next} statements within the loop itself. The \textit{break} procedure is a continuation of the statements that occur after the loop. The \texttt{break} statements inside the loop body are replaced with a tail call to the \textit{break} procedure. 
+
+After a procedure has been unbranched, the constraints placed on the AST ensure that the structure is identical to that of LPVM (see \cref{sec:extended-lpvm}). As such, the translation to LPVM is simplified, requiring only that each variable reassignment introduces a new version of the variable, much like the versions of variables used with $\phi$-nodes in SSA form~\cite{cytron1991efficiently}. The acyclic nature of LPVM, however, precludes the requirement of such nodes in the intermediate representation. An example of this version numbering is seen in \cref{lst:unbr-number}.
+
+\begin{lstlisting}[
+  caption={%TC:ignore
+    [Procedure with re-assigned variables as new versions of the variable.]%TC:ignore
+    Procedure with re-assigned variables as new versions of the variable with an affixed number. Note that once re-assigned, the variable is never used again. This example continues from \cref{lst:unbranching}.},
+  label={lst:unbr-number},
+  float=ht
+]
+def count_down(x0) {
+    next(x0)
+}
+
+def next(x0) {
+    `>`(x0, 0, ?tmp0) # de-sugared
+    if { tmp0 :: 
+        break(x0)
+    | else :: 
+        println(x0)
+        ?x1 = x0 - 1
+        next(x1)
+    }
+}
+
+def break(x0) {
+    println("done")
+}
+\end{lstlisting}
+
+\section{Closure Conversion}
+\label{sec:closure-conversion}
+
+With the advent of higher-order code in Wybe, expressions now may contain two higher-order constructs, namely anonymous procedures, and partial applications. For simplicity, a uniform representation of these constructs allows for ease of transformation in latter optimisations (\cref{ch:lpvm-optimisations}) and translations (\cref{ch:llvm-conversions}). We perform a variant of closure conversion~\cite{landin1964mechanical} in two stages, first by hoisting anonymous procedures into regular procedures, then generating trampolines to represent closures for all procedure references.
+
+All anonymous procedures are converted into regular procedures. This hoists the anonymous procedure into the module level, generating a fresh procedure, with all holes by obfuscated variable names. This procedure is also unbranched as with all other procedures. 
+
+The parameters of this hoisted procedure can be categorised into two groups, free variables and holes, with the free variables present in the parameter list before the holes. Each hole is given a name uniformly throughout the body of the procedure. Free variables are recognised here as any variable that is currently in scope and also used within the body of the hoisted procedure. 
+
+The anonymous procedure expression is then replaced with a reference to the hoisted procedure, as a partial application of the now-closed variables. As these variables are capured by value, not by reference, passing the value to the partial application enables the desired behaviour. An example of this can be seen in \cref{lst:closure-conversion-hoist}.
+
+\begin{figure}[ht]
+  \setcaptiontype{lstlisting}
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}
+def foo(b:bool, 
+        ?f:(int, int, ?int)) {
+    ?f = { 
+
+
+
+        if { b :: 
+            @1 = ?@3 
+        | else :: 
+            @2 = ?@3
+        } 
+    }
+}
+\end{lstlisting}
+    \subcaption{Before hoisting.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}[numbers=none]
+def foo(b:bool, 
+        ?f:(int, int, ?int)) {
+    ?f = [@anon<b>@]
+}
+[@def anon(^b:bool, 
+         p1:int, p2:int, ?p3:int)@] {
+    if { b :: 
+        p1 = ?p3 
+    | else :: 
+        p2 = ?p3
+    } 
+}
+ \end{lstlisting}
+    \subcaption{After hoisting.}
+  \end{minipage}
+  \caption[Example of the first stage of closure conversion, hoisting.]{Example of the first stage of closure conversion, hoisting. The anonymous procedure is converted into a fresh procedure, \texttt{anon}, with \texttt{b} as a free variable (marked by a preceding \texttt{\^}) and renamed holes, with the relevant modifications are highlighted in \textcolor{rred}{red}.}
+  \label{lst:closure-conversion-hoist}
+\end{figure}
+
+The second stage of closure conversion converts all procedure references (including those to hoisted anonymous procedures) into a reference to a closure procedure. After this conversion is performed, all procedure references are now references to closure procedures.
+
+A closure procedure for some procedure, $p$, with closed variables, $C$, is simple. The procedure has an identical interface to $p$ and contains a single call to $p$ inside the body, with closed variables present before the regular arguments. However, the parameters that correspond to the closed variables, $C$, are marked as being free variables. An example of this process is found in \cref{lst:closure-conversion-close}.
+
+\begin{lstlisting}[
+  caption={%TC:ignore
+    [Example of the second stage of closure conversion in unbranching.]%TC:endignore
+    Example of the second stage of closure conversion in unbranching, continuing from \cref{lst:closure-conversion-hoist}. The procedure reference, \texttt{anon<b>}, is transformed into a fresh closure procedure, \texttt{clos}, with changes highlighted in \textcolor{rred}{red}.},
+  label={lst:closure-conversion-close},
+  float=ht
+]
+def foo(b:bool, ?f:(int, int, ?int)) {
+    ?f = [@clos@]<b>
+}
+def anon(^b:bool, p1:int, p2:int, ?p3:int) {
+    if { b :: 
+        p1 = ?p3 
+    | else :: 
+        p2 = ?p3
+    } 
+}
+[@def clos(^b:bool, p1:int, p2:int, ?p3:int) {
+    anon(b, p1, p2, ?p3)
+}@]
+\end{lstlisting}
+
+The ultimate purpose of a closure procedure is in the final stages of the Wybe compiler, in translation to LLVM (\cref{ch:llvm-conversions}), creating a closure with a reference to its environment. In the final stages of the compiler, in translation to LLVM (\cref{sec:llvm-closure-proc-refs}), these closure procedures are transformed into a conventional closure with an explicit \textit{environment} parameter which is used to retrieve the values of closed variables. We delay this transformation to allow greater use of optimisations of the generated LLVM code, namely neededness analysis on the closed variables (see \cref{ssec:neededness}) while ensuring the interface of this procedure is conserved.
+
+\section{Extended LPVM Implementation}
+\label{sec:extended-lpvm}
+
+\textit{Logic Programming Virtual Machine} (LPVM)~\cite{gange2015horn} is an LP form intermediate representation based upon constrained sets of horn clauses as a program representation. LPVM is the primary intermediate representation in place in the Wybe compiler. 
+
+The form of LPVM presented and extended here and used within the compiler differs from initially presented in~\cite{gange2015horn}, following more closely to the outlined tree-based implementation. This implementation of LPVM also allows for impurity, while the original presentation of the representation was intended to be pure. Impurity inhibits some optimisations that could occur with LPVM, and as such procedures are assumed to be pure unless otherwise annotated.
+
+In LPVM, procedures have a simple form, as defined by the grammar in \cref{fig:lpvm-grammar}. Procedures have a list of formal parameters and accompanying flows, with flows restricted to being either inwards or outwards (\texttt{?}) (with in/out arguments replaced by a separate inwards and outwards flowing argument). All procedure bodies are a (possibly empty) list of \textit{primitives}, optionally terminated by a \textit{fork}. A fork is a conditional branch, being conditioned upon some variable with several cases. Each case corresponds to a value, such that if the variable has said value, the body of the case is executed. 
+
+\begin{figure}[ht]
+  \begin{bnf*}
+    \bnfprod{proc}
+      {\bnftd{name}\bnfts{(}(\bnfpn{flow}\bnftd{var})^{*}\bnfts{):}\ \bnfpn{body}}\\
+    \bnfprod{body}
+      {\bnfpn{prim}^{*}\ \bnfpn{fork}}\\
+    \bnfprod{prim}
+      {\bnftd{name}\bnfts{(}\bnfpn{val}^{*}\bnfts{)}}\\
+      \bnfmor{\bnfts{foreign }\bnftd{lang}\ \bnftd{name}\bnfts{(}\bnfpn{val}^{*}\bnfts{)}}\\
+    \bnfprod{fork}
+      {\bnfts{case }\bnftd{var}\bnfts{:}\ \bnfpn{case}^{*}\ \ |\ \ \bnfes}\\
+    \bnfprod{case}
+      {\bnftd{const}\bnfts{:}\ \bnfpn{body}}\\
+    \bnfprod{val}
+      {\bnfpn{flow}\bnftd{var}\ \ |\ \ \bnftd{const}}\\
+    \bnfprod{flow}
+      {\bnfts{?}\ \ |\ \ \bnfes}
+  \end{bnf*}
+  \caption{The grammar of the LPVM intermediate representation.}
+  \label{fig:lpvm-grammar}
+\end{figure}
+
+Primitives are the procedure calls of LPVM. There are two variants of primitives, foreign and regular calls. Foreign calls provide the foreign function interface in LPVM, with a specified language, such as LLVM which is used to interface with low-level instructions including those for arithmetic and Boolean operations. Foreign calls also include the built-in procedures of the LPVM language, handling elements of the language such as memory management and assignment via the \texttt{move} instructions. Regular calls are all other calls, calling procedures defined in some LPVM module. 
+
+With the advent of higher-order code, there are two features that we require in the LPVM implementation, namely higher-order calls and terms, and global variables and global flows. The extended grammar of LPVM is presented in \cref{fig:lpvm-grammar-extended}.
+
+We extend the concept of a primitive to include higher-order calls. Similar to a first-order primitive call, we make a higher-order call with a list of arguments. However, unlike a first-order primitive call, we do not make the call to a static name, but to some value. For a program in LPVM to be semantically correct, the value called in a higher-order type must have the correct arity, flows, and types. These higher-order types are identical to those introduced in \cref{ch:types}, with accompanying modifiers controlling the purity and ability to manipulate resources (now global variables), however in/out flows are translated into a pair of in and out flows.
+
+\begin{figure}[ht]
+  \begin{bnf*}
+    \bnfprod{proc}
+      {\bnftd{name}\bnfts{(}(\bnfpn{flow}\bnftd{var})^{*}\bnfts{)<}\bnfpn{globals}\bnfts{,}\bnfpn{globals}\bnfts{>:}\ \bnfpn{body}}\\
+    \bnfprod{body}
+      {\bnfpn{prim}^{*}\ \bnfpn{fork}}\\
+    \bnfprod{prim}
+      {\bnftd{name}\bnfts{(}\bnftd{val}^{*}\bnfts{)<}\bnfpn{globals}\bnfts{,}\bnfpn{globals}\bnfts{>}}\\
+      \bnfmor{\bnfpn{val}\bnfts{(}\bnfpn{val}^{*}\bnfts{)}}\\
+      \bnfmor{\bnfts{foreign }\bnftd{lang}\ \bnftd{name}\bnfts{(}\bnftd{val}^{*}\bnfts{)}}\\
+    \bnfprod{fork}
+      {\bnfts{case }\bnftd{var}\bnfts{:}\ \bnfpn{case}^{*}\ \ |\ \ \bnfes}\\
+    \bnfprod{case}
+      {\bnftd{const}\bnfts{:}\ \bnfpn{body}}\\
+    \bnfprod{val}
+      {\bnfpn{flow}\bnftd{var}\ \ |\ \ \bnftd{const}\ \ |\ \ \bnftd{global}\ \ |\ \ \bnftd{name}\bnfts{<}\bnfpn{val}^{*}\bnfts{>}}\\
+    \bnfprod{flow}
+      {\bnfts{?}\ \ |\ \ \bnfes}\\
+    \bnfprod{globals}
+      {\set{\bnftd{global}^{*}}\ \ |\ \ \univ}
+  \end{bnf*}
+  \caption[The grammar of the extended LPVM intermediate representation.]{The grammar of the extended LPVM intermediate representation. We omit types from this grammar, however, all values are explicitly typed.}
+  \label{fig:lpvm-grammar-extended}
+\end{figure}
+
+We also extend LPVM with two new values, partial applications of (closure) procedures, and \textit{global} variable references. Partial applications follow directly from the representation in the Wybe AST, being a reference to a defined \textit{closure} procedure, with the closure of the free variables captured in an argument list. As with all values in LPVM, all values are explicitly typed, with these types translating directly from the Wybe types.
+
+In support of global variables, we define two LPVM primitives (\cref{lst:lpvm-global-instructions}) that translate directly from the Wybe AST counterparts used in \cref{ssec:global-resource-transformation}. These instructions are introduced only in the resource globalisation pass and are not allowed to originate from the source code.
+
+\begin{lstlisting}[
+  caption={LPVM primitive instructions for the manipulation of global variables.},
+  label={lst:lpvm-global-instructions},
+  float=ht,
+  mathescape
+]
+foreign lpvm load(<$global$>:$type$, ?$var$:$type$)
+foreign lpvm store($val$:$type$, <$global$>:$type$)
+\end{lstlisting}
+
+Globals are references to global variables, denoted by $\angles*{g}$, each corresponding to a resource in the Wybe program. LPVM programs that are semantically correct have global variable references in two locations, in LPVM \texttt{load} and \texttt{store} instructions. Global variables have the same type in all references to the global variable. Global variables are introduced by the compiler in the resource globalisaton transformation (\cref{ssec:global-resource-transformation}), being present in only \texttt{load} and \texttt{store} instructions. As global variables cannot be explicitly referenced in Wybe source code, global variables are also wholly controlled by the compiler via these instructions. 
+
+Semantically, the LPVM \texttt{load} instruction loads the current value of a global variable, binding an output variable to this value. The LPVM \texttt{store} instruction, conversely, stores a value, be it an in-flowing variable or some constant, as the current value for a global variable. 
+
+\subsection{Global Flows}
+\label{ssec:global-flows}
+
+To facilitate the optimisation of the manipulation of global variables, knowledge of how global variables are manipulated by a primitive in LPVM is useful. To this effect, we define \textit{global flows}. Global flows provide a declarative interface via which we can analyse the state of global variables in an LPVM program. The optimisations defined in \cref{ch:lpvm-optimisations} make heavy use of global flows and the global flow interface of procedures to safely perform the defined optimisations.
+
+Global flows are, semantically, flows associated with global variables. An inwards global flow dictates a global variable being read via some LPVM \texttt{load} instruction. Conversely, an outwards global flow represents a global variable that is written to via an LPVM \texttt{store} instruction.
+
+We represent global flows as a pair of sets of global variables, $\ttangles{in, out}$, with the first component, $in$, containing the inwards flows and the second, $out$, containing the outwards flows. These sets can be universal, $\univ$, representing global flows (in or out) of \textit{all} global variables.
+
+For each procedure, we define a \textit{global flow interface}, which is represented identically to global flows, as a pair of sets of global variables. The interface states which global variables a procedure potentially manipulates, \textit{i.e.}, if a global variable has an inwards or outwards flow in some procedure's interface, this procedure potentially reads from or writes to this global variable, respectively. In the case that a global variable has an outwards flow, but no corresponding inwards flow, this global variable is guaranteed to be overwritten. For inwards-only flows of global variables, the state of the global variable is guaranteed to be the same before and after the call, however, it may be read and written to.
+
+The global flows in the interface of a procedure are derived from the parameter types and resources used (and corresponding flows) of the procedure. If some parameter to the procedure has a higher-order type with the \texttt{resource} modifier, then we define the global flows of this procedure as having universal global flows, $\ttangles{\univ, \univ}$. As a higher-order term can potentially cause \textit{any} resource to be read from or written to, this procedure can potentially read from or write to any given resource. Otherwise, for each resource, $r$, with some given flow, the procedure has an inwards or outwards global flow dependent upon the flow of $r$ in the procedure.
+
+These sets may not truly represent the global flows that occur within a procedure, however. For instance, if a global variable is written to before it is ever read from, then the interface does not require the inwards global flow, which can occur when a resource has an outwards flow, and must be bound to a value before it is used. Further, if a global variable's value is the same before and after the procedure were called, the interface does not require the outwards global flow. This is ensured by the compiler inserting a \texttt{use} block, saving the initial value of inwards-only flowing resources, and restoring them at the end of the procedure, ensuring the value remains unchanged. These flows are in effect is transparent to the callee of a procedure and is not included in the interface. These guarantees are made by the callee save convention guaranteed by the resource globalisation transformation (\cref{sec:resources-as-globals}).
+
+The remaining primitives in LPVM also have corresponding global flows. The LPVM \texttt{load} and \texttt{store} instructions are defined as having $\ttangles{\set{g}, \varnothing}$ and $\ttangles{\varnothing, \set{g}}$ global flows, respectively, when manipulating a global variable $g$. All other foreign primitives are defined to have no global flows, $\ttangles{\varnothing, \varnothing}$.
+
+Higher-order primitives are defined as having no global flows, $\ttangles{\varnothing, \varnothing}$, when the type of the called higher-order term does not have the \texttt{resource} modifier. Otherwise, if the \texttt{resource} modifier is present the higher-order primitive is defined to have $\ttangles{\univ, \univ}$ global flows. This is because a resourceful higher-order term can potentially modify \textit{any} resource, and as such must conservatively assume that all global variables may be read or written.
+

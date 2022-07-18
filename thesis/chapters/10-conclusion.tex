@@ -1,0 +1,52 @@
+\clearpage
+
+\def\chaptertitle{Conclusion}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:conclusion}
+
+\section{Contribution}
+\label{sec:contribution}
+
+The contribution of this work can be broken into three parts: a higher-order extension to the Wybe language, a higher-order extension to the LPVM intermediate representation, and an extension to LPVM to support global variables. 
+
+In support of the higher-order extension to the Wybe language, we have formalised the type system in place in the Wybe language. This formalisation provides a basis upon which future extensions to the Wybe type system can use in the effort of a formal basis for such extensions.
+
+The higher-order extension to the Wybe language has introduced syntactic extensions to the Wybe language, which allow for more expressive, higher-order code, to be manifested in the Wybe language. 
+
+The extension of the Wybe language with higher-order programming prompted an extension to LPVM to allow for higher-order programming. This included the extension of optimisations in place to incorporate the presence of higher-order terms and introduced a new optimisation that allowed the reduction of higher-order calls to first-order calls.
+
+This higher-order extension to the Wybe language motivated the promotion of resources in the Wybe language into global variables from the previous implementation that reduced resources to formal parameters. The Wybe language relies on LPVM as its primary intermediate representation, and hence we have introduced global variables into the intermediate representation.
+
+Global variables often inhibit optimisations in place in compilers. With the constraints placed on global variables through their origins as resources in Wybe, we have devised a declarative interface, \textit{global flows}. Global flows allow for program analyses and transformations currently in place in LPVM to be correct in the presence of global variables. We have also implemented a novel optimisation that enables analysis of the manipulation of global variables, reducing the manipulation of global variables where possible. This optimisation would not be possible without the use of global flows.
+
+We have also evaluated the performance of the extensions made to the Wybe language. We have shown that in general, higher-order code allows for only a small overhead in the runtime of programs compared to a first-order implementation. Further, the increased expressiveness enabled by higher-order code allows for the production of succinct, more general code that has can lead for reductions in the generated code's size. There are some cases where higher-order code can lead to an increased runtime of close to 10\%, which we aim to focus in future work.
+
+We have further shown that the transformation of resources into global variables does not affect the execution runtime nor the compiled program size greatly in general. There are some cases where the globalisation of resources allowed the LLVM compiler to produce a more optimised executable, decreasing the runtime with globalised resources, also.
+
+\section{Future Work}
+\label{sec:future-work}
+
+\subsection{Multiple Specialisations}
+
+Within the Wybe compiler is a framework that supports \textit{multiple specialisations}~\cite{chen2020multiple}. This framework allows different versions of procedures to exploit properties of the call sites of a procedure and is used currently to provide compile-time garbage collection in the Wybe language. 
+
+Specialisations of higher-order procedures, such as \texttt{map} or \texttt{sort} could be made where the higher-order argument (the mapping procedure and comparison procedure, respectively) are known. These specialisations would allow for other analyses to perform stronger optimisations, such as reducing the higher-order call to a first-order call, potentially bridging the performance gap between first-order and higher-order programming further. 
+
+This framework could also be used in future work to replace globalised resources with parameterised resources as was previously the case in the Wybe compiler. Although, the benchmarking experiments we have performed in this work have shown that there are negligible overheads associated with the use of global variables on the runtime of programs. Excessive multiple specialisations may introduce a small increase in the binary final size, and the performance gain may be negligible, so further work is required to determine if multiple specialisations with globalised resources would be fruitful.
+
+\subsection{Globalisation Limitation}
+
+In \cref{ssec:globalisation-limitations}, we have discussed one major limitation to the globalisation of resources. This occurs in the presence of failing tests, where the globalised resource does not correctly revert the value to that of before the test. Future work may be able to devise an enhancement of the globalisation strategy to amend this limitation. 
+
+In logic programming, the concept of a \textit{trail} is used to track the state of variables that are to be appropriately unbound in the case of failure, and this approach may be suitable in the correction of this globalisation strategy. Alternatively, a different strategy may appear that does not have this limitation.
+
+\subsection{Improved Closure Allocation}
+
+As shown with the higher-order implementation of the \textit{N Body} program, identical closures may be constructed numerous times throughout a higher order call. If these closures are not constant, this requires allocation of memory on the heap, which we have shown introduces a slowdown in the execution runtime of the compiled code.
+
+The compiler currently is unable to share references to these constructed closures as they occur in separate calls. However, the compiler may recognise that the term is defined as an invariant of the closure, and transform the closure procedure, hoisting the invariant term as a fresh closed variable of the closure. This would further require transformation of all references to this closure to construct the term and pass it as a closed variable to the closure.
+
+In future work we aim to hoist these common terms from closure procedures in the effort to bridge the gap in performance seen with higher-order code. This optimisation could also apply further to any procedure where a term is an invariant of the input parameters, and extract such terms from other procedures, such as the recursive procedures constructed to represent loops during unbranching.

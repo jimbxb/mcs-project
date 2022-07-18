@@ -1,0 +1,353 @@
+\clearpage
+
+\def\chaptertitle{LPVM Optimisations}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:lpvm-optimisations}
+
+This chapter introduces various optimisations to the LPVM intermediate representation we make use of in the Wybe compiler. The optimisations relate primarily to two language features that have been introduced in this thesis: higher-order terms and the manipulation of global variables. 
+
+Throughout earlier stages of the compilation process, including mode checking, resource transformations and unbranching, we are careful to introduce additional statements and constructs conservatively. We, however, are not overly concerned with producing optimal code in these stages. The purpose of these optimisations is to take existing LPVM code and produce a more optimised version of this code that produces the same effects as the existing code.
+
+The optimisation passes we detail in this chapter are built upon the \textit{body builder} framework. The body builder is a general framework that can be used to perform various optimisation passes over a given procedure body in LPVM. Body building is performed in two passes, forwards then backwards, traversing the body in the direction of execution and in reverse, respectively. The compiler uses the body builder framework to perform various optimisations, including procedure call inlining and multiple specialisations~\cite{chen2020multiple}. 
+
+\section{Extension of LPVM Optimisations}
+\label{sec:higher-order-opt}
+
+The body builder framework has many built-in optimisation passes that are performed in tandem with each other. In this section we introduce and extend three optimisations, namely neededness, value propagation, and common sub-expression elimination, to incorporate higher-order calls and terms. We also introduce an optimisation pass to transform some higher-order calls into first-order calls. 
+
+\subsection{Neededness}
+\label{ssec:neededness}
+
+Neededness is an analysis that was designed for the LP form intermediate languages~\cite{gange2015horn}. Neededness extends the dead code elimination transformation, a transformation that removes redundant code.
+
+In general, a variable $x$ is needed if $x$ is an output of the procedure, or $x$ is used in some computation that produces some other value, $y$, that is needed. Due to the single assignment property of LPVM, each variable is defined exactly once in a clause. As assignment has no effects, variables that are assigned but are never needed can be removed. If a procedure call has no outputs that are needed, then we can also remove said procedure call if it is pure. This is because the call will have no side effects and nothing produced by the procedure call is ever used later.
+
+With the advent of global variables, a pure primitive may have outputs beyond producing regular output variables. These outputs are in the form of outwards global flows. If a primitive has an outwards global flow for some global variable, $g$, then the primitive \textit{may} overwrite the value of $g$. As this effect may be necessary for the remaining computation, if a primitive has some outwards global flow, this primitive is considered \textit{needed} and cannot be omitted. We make this extension to neededness analysis concrete in \cref{ssec:global-opt-bwd}.
+
+Neededness analysis can find that some input parameters of procedures are unused, and hence passing such arguments is redundant. When performing neededness analysis, if some parameter to a called procedure is marked as un-needed, the corresponding argument can be replaced with a dummy value, reducing the uses of said argument. 
+
+In the translation to LLVM, parameters marked as un-needed are not translated into parameters in the corresponding LLVM function. We introduce one caveat to this rule. Closure procedures, as introduced in \cref{sec:closure-conversion}, a procedure is marked as being used as the trampoline for some closure. This procedure has a particular interface with certain parameters corresponding to now closed variables. The other parameters define the interface assumed to be used for the trampoline and must be as such for correct LLVM code generation. Therefore, the non-closed variable parameters as such are always marked as needed.
+
+In general, neededness can be performed over the whole program until a fixed point is found, wherein no more parameters can be marked as unneeded, and no more dead code can be eliminated, finding a fixed point of the neededness of parameters. We perform a reduced neededness analysis in the Wybe compiler that is performed in the backwards pass of a body builder. This reduced neededness analysis is performed per procedure, removing instructions marked as unneeded, and accordingly the parameters that are also marked as unneeded. 
+
+\subsection{Value Propagation}
+\label{ssec:value-propagation}
+
+Value propagation is a generalisation of the constant propagation optimisation. Constant propagation transforms variables that are a known constant value into said constant value. This optimisation alone is not very powerful but is used in tandem with other optimisations such as common sub-expression elimination and neededness to provide stronger optimisations.
+
+Value propagation extends the propagation of constant values to that of variables. If some variable, $v$, is assigned via a call $\mathtt{move}(x, ?v)$, the value of $v$ can be replaced by $x$ throughout the whole body of the procedure. Here, $x$ can be any value, be it some constant or some other variable.
+
+When used in tandem with neededness analysis, assuming that $v$ is not an output of the procedure, this \texttt{move} instruction is now dead and can be removed. The instruction is dead because the output value, $v$, is no longer used in the body of the procedure.
+
+In the context of higher-order calls, the called higher-order term may be replaced by some other value, a procedure reference, which is useful in performing the call lowering optimisation, lowering a higher-order call to a known procedure into a first-order call. A procedure reference may also have nested terms, the closed variables, which may be replaced through value propagation.
+
+\subsection{Common Sub-Expression Elimination}
+\label{ssec:common-sub-expression-limination}
+
+In a common sub-expression elimination (CSE) optimisation, identical expressions are replaced by a temporary value that stores the evaluation of the expression~\cite{cocke1970global}.
+
+In LPVM, CSE takes a slightly different form. Whereas some languages and intermediate representations have expressions, LPVM does not, instead only having primitives, be it procedure calls, foreign calls, and now higher-order calls. These primitives may also have numerous output values. The notion of a common sub-expression is replaced by a common primitive. A common primitive is a pure primitive that identical to some other primitive, excluding the outputs of said primitives. 
+
+If it is found that a pure primitive has been called previously in some procedure's body with identical inputs, the primitive can be replaced by \texttt{move} instructions, replacing each output, $v$, with the corresponding output, $u$, from the previously computed, identical, primitive, with a $\mathtt{move}(u, ?v)$ instruction. 
+
+As the primitive is pure, the only effect the primitive can have is producing the outputs. The outputs of a pure procedure will always be identical, and as such replacing the outputs with those of an identical primitive is identical, semantically. We also omit this optimisation from primitives that have any global flows, as we cannot be certain that the state of the global variables is identical.
+
+In conjunction with value propagation, this optimisation allows the outputs of the common primitive to be removed from the procedure entirely, assuming they are unused by not being an output of the procedure. 
+
+We extend this optimisation to include higher-order calls also. Much like first-order calls, a higher-order call to a pure term has no side effects, producing only the outputs for the primitive. As such, if the body builder finds that a call to an identical higher-order term is made with identical input arguments, the optimisation can replace the higher-order call primitive with a series of $\mathtt{move}(u, ?v)$ instructions, for each output $v$ and corresponding output $v$ from the previous higher-order call primitive.
+
+\subsection{Higher-Order Call Lowering}
+\label{ssec:higher-call-lowering}
+
+A higher-order call, by its very nature, has associated overheads. These overheads are introduced by making the higher-order call itself and through the creation of the closure and its referenced environment. Through various optimisations, primarily value propagation, it is possible for a higher-order call to be made to a procedure reference directly. This optimisation is common in compilers that use higher-order programming~\cite{keep2012optimizing}, though the format of this optimisation differs slightly with the representation of closures and partial applications of LPVM.
+
+In this case, the higher-order call has the form $proc\ttangles{c_1, \dots, c_n}(arg_1, \dots, arg_m)$, where $c_i$ are the closed variables for the procedure reference. After the closure conversion process in the unbranching stage of the compiler (\cref{sec:closure-conversion}), all procedure references are guaranteed to be references to closure procedures. These closure procedures are defined to ensure that the interface of the closure is correct for final code generation. However, in the case of a first-order call, the interface is dependent on which input arguments are \textit{needed}. As every closure procedure has a corresponding non-closure procedure, the transformation can replace the higher-order call to $proc$ with a first-order call to $proc^\prime$, where $proc^\prime$ is the non-closure version of $proc$. 
+
+This optimisation will replace $proc\ttangles{c_1, \dots, c_n}(arg_1, \dots, arg_m)$ with the first-order call $proc^\prime(c_1, \dots, c_n, arg_1, \dots, arg_m)\angles*{ins, outs}$, where $\angles*{ins, outs}$ are the global flows of the $proc^\prime$ procedure.
+
+Reducing a call from a higher-order call to an equivalent first-order call is beneficial for several reasons. While a first-order call has fewer associated overheads, first-order calls are amenable to many more optimisations, including the full benefits of neededness (with the removal of un-needed arguments), and inlining. First-order calls are also annotated with information on exactly which global flows the procedure has, which is beneficial in the global variable optimisations in \cref{sec:global-opt}.
+
+\section{Optimisation of Global Variable Manipulation}
+\label{sec:global-opt}
+
+In this section, we introduce analyses and transformations to optimise the use of global variables in a program represented in LPVM. These optimisations remove unnecessary reading from and writing to of global variables as these may produce redundant overhead. We also further extend the neededness analysis as discussed in \cref{ssec:neededness}.
+
+We define two optimisations to remove \texttt{load} and \texttt{store} instructions where possible in forwards (\cref{ssec:global-opt-fwd}) and backwards (\cref{ssec:global-opt-bwd}) passes, as an extension to the existing body builder. Further, we define an optimisation that constrains the global flow interface of procedures (\cref{ssec:global-opt-interface}), allowing for stronger optimisations in future body builder passes.
+
+\subsection{Forward Analysis and Transformation}
+\label{ssec:global-opt-fwd}
+
+In a forward analysis, the body of an LPVM procedure is traversed in the order of execution. Due to the property of forks in LPVM being pairwise disjoint, a forwards analysis analyses each fork individually. As such, analyses and transformations are applied up to the end of a body, diverging at a fork if present.
+
+In this analysis, the body builder maintains a single map called the \textit{global value map}, $m$. The global value map associates a global variable to some value. This map is maintained throughout this analysis and transformation to include currently known values for global variables. Through the analysis LPVM \texttt{load} and \texttt{store} instructions, \textit{def-use} chains for the referenced global variable are inferred, with the map $m$ marking the currently defined value for corresponding global variable. 
+
+\cref{fig:lpvm-global-opt-fwd} presents the analysis and transformation that occurs for this optimisation. The rule $F$ initialises the analysis with an empty map. $F_{body}^m$ describes the analysis of a sequence of primitives terminated by a fork, passing the updated map, $m^\prime$, through the sequence of primitives. $F_{prim}^m$ describes the transformation of a single primitive given the map $m$, and accordingly how the analysis modifies $m$.
+
+\begin{figure}[ht]
+  \centering
+  \begin{align*}
+    F\bbrackets*{proc(\dots)\ttangles{\dots}:body} &= proc(\dots)\ttangles{\dots}:F_{body}^\varnothing\bbrackets*{body} \\\\
+    F_{body}^m\bbrackets*{\left[\mathtt{case}\ v\left\{b_1; \dots; b_n\right.\right]} &= \left[\mathtt{case}\ v\left\{F_{body}^m\bbrackets*{b_1}; \dots; F_{body}^m\bbrackets*{b_n}\right.\right] \\
+    F_{body}^m\bbrackets*{[\ ]} &= [\ ] \\
+    F_{body}^m\bbrackets*{[prim \mid prims]} &= prim^\prime + F_{body}^{m^\prime}\bbrackets*{prims}
+    \shortintertext{where $(m^\prime, prim^\prime) = F_{prim}^m\bbrackets*{prim}$} \\
+    F^m_{prim}\bbrackets*{\mathtt{load}(\angles*{g}, ?v)} &= \begin{cases*}
+      (m[g \mapsto v],[\mathtt{move}(u, ?v)]) & if $m(g) = u$ \\
+      (m[g \mapsto v],[\mathtt{load}(\angles*{g}, ?v)]) & otherwise
+    \end{cases*} \\
+    F_{prim}^m\bbrackets*{\mathtt{store}(v, \angles*{g})} &= \begin{cases*}
+      (m, [\ ]) & if $m(g) = v$ \\
+      (m[g \mapsto v], [\mathtt{store}(v, \angles*{g})]) & otherwise
+    \end{cases*} \\
+    F_{prim}^m\bbrackets*{\mathtt{foreign}\ proc(\dots)} &= (m, [\mathtt{foreign}\ proc(\dots)]) \\
+    F_{prim}^m\bbrackets*{proc(\dots)\angles*{ins, outs}} &= (m\ \backslash\ outs, [proc(\dots)\angles*{ins, outs}]) \\
+    F_{prim}^m\bbrackets*{f(\dots)} &= \begin{cases*}
+      (\varnothing, [f(\dots)]) & if $resourceful(f)$ \\
+      (m, [f(\dots)]) & otherwise
+    \end{cases*}
+  \end{align*}
+  \caption{Forward analysis and transformations of global variable manipulation in LPVM.}
+  \label{fig:lpvm-global-opt-fwd}
+\end{figure}
+
+To analyse an LPVM \texttt{load} instruction $\mathtt{load}(\angles*{g}, ?v)$, where some global variable, $g$, is loaded into a local variable, $v$, the analysis considers the map, $m$. If $m$ does not contain a defined value for $g$, this instruction marks the start of a def-use chain. The transformation leaves the instruction unmodified and updates $m$ to reflect the current known value of $g$ to the now loaded value, $v$.
+
+Otherwise, where $m$ does contain an associated value, $u$, of the global variable, $g$, the \texttt{load} instruction is rendered redundant through some previous definition of the value of $g$. As $m$ contains a known definition of $g$, the \texttt{load} instruction will be loading an equivalent value as $u$. The instruction is thus removed, being replaced by a $\mathtt{move}(u, ?v)$ instruction, and does not define a new def-use chain, as exemplified in \cref{lst:fwd-opt-load}. Together with value propagation, all further instances of $v$ can be replaced by $u$, and this \texttt{move} instruction may be removed entirely if value propagation causes $v$ to become un-needed. 
+
+\begin{figure}[ht]
+  \setcaptiontype{lstlisting}
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}
+foreign lpvm load(<g>:int, ?u:int)
+# intervening primitives
+foreign lpvm load(<g>:int, ?v:int)
+\end{lstlisting}
+    \subcaption{Before optimisation.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}[numbers=none]
+foreign lpvm load(<g>:int, ?u:int)
+# intervening primitives
+foreign lpvm move(u:int, ?v:int)
+\end{lstlisting}
+    \subcaption{After optimisation.}
+  \end{minipage}
+  \caption[Transformation of a \texttt{load} instruction into a \texttt{move} with forwards analysis.]{Transformation of a \texttt{load} instruction into a \texttt{move} with forwards analysis, assuming the global variable, \texttt{g}, is untouched in the intervening primitives.}
+  \label{lst:fwd-opt-load}
+\end{figure}
+
+A \texttt{store} instruction, $\mathtt{store}(v, \angles*{g})$, semantically, writes a value, $v$, to some global variable, $g$. In effect, the \texttt{store} instruction starts a new def-use chain for $g$, with the value of $g$ being that of $u$ until further redefined. 
+
+If $m$ contains an associated value, $u$, for the global variable $g$, the analysis may find that the \texttt{store} instruction is redundant. If the previously defined value $u$ is equivalent to the newly defined value $v$, the analysis finds this \texttt{store} instruction to be redundant. 
+
+This case can arise in two ways: either some previous \texttt{load} instruction has loaded the value $u$ from $g$ and the \texttt{store} instruction now writes $u$ back into $g$ (as in \cref{lst:fwd-opt-load}), or two successive \texttt{store} instructions have attempted to write the same value to $g$. In either of these cases, the transformation can remove the \texttt{store} instruction, removing the def-use chain that spawns from this instruction. 
+
+Otherwise, the analysis cannot show that the current value of $g$ is the same as the new value $v$. As such the \textit{forward} optimisation cannot remove the \texttt{store} instruction, and we define a new def-use chain for $g$, updating the map to reflect this newly defined value, $v$. This \texttt{store} may be removed in a backwards pass (\cref{ssec:global-opt-bwd}) if the value written is never read before being overwritten, however, we cannot prove that it is redundant in a forwards analysis.
+
+\begin{figure}[ht]
+  \setcaptiontype{lstlisting}
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}
+foreign lpvm load(<g>:int, ?u:int)
+# intervening primitives
+foreign lpvm store(u:int, <g>:int)
+\end{lstlisting}
+    \subcaption{Before optimisation.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}[numbers=none, showlines]
+foreign lpvm load(<g>:int, ?u:int)
+# intervening primitives
+ 
+\end{lstlisting}
+    \subcaption{After optimisation.}
+  \end{minipage}
+  \caption[Removal of a \texttt{store} instruction with forwards analysis.]{Removal of a \texttt{store} instruction with forwards analysis, assuming the global variable, \texttt{g}, is untouched in the intervening primitives.}
+  \label{lst:fwd-opt-store}
+\end{figure}
+
+This analysis is unable to remove any further instructions. However, the information contained in the global flows of other instructions is essential to the analysis. For a procedure to have an outwards global flow, for some global variable, $g$, the primitive may have the effect of overwriting the current value of $g$. The analysis conservatively assumes that each primitive with such a global flow for $g$ does overwrite the value contained in $g$, ending a known def-use chain for $g$. As such, for all global variables with such an outwards global flow, each global variable and associated value must be removed from $m$. 
+
+For the remaining \texttt{foreign} primitives, this does not remove any global variables from the map, as only the LPVM \texttt{load} and \texttt{store} instructions have any global flows. For first-order calls, the annotated global variables in the outward global flow set are removed, as their defined values \textit{may} change. 
+
+In the case of higher-order calls ($f(\dots)$ in \cref{fig:lpvm-global-opt-fwd}), if the called value is resourceful, as annotated in the higher-order type, all global variables in the global variable map must be removed, and otherwise, the map remains unchanged. Higher-order types lack annotation of which resources, and hence global variables may be modified, the analysis must conservatively assume that all global variables may have been changed by the higher-order call. However, with the call lowering optimisation, the analysis may be able to know the global flows of such a higher-order call, if it can first be transformed into a first-order call.
+
+In the case that a primitive does not contain an outward flow for some global variable, $g$, the primitive may internally overwrite the value of the global variable. However, due to the callee save convention used for global variables, if there is no outwards global flow for $g$, the primitive must ensure the value of the global variable is saved, remaining unchanged immediately before and after a call to the primitive. In such a case, if a value is currently known for $g$, then the value of $g$ after the primitive must be the same, and any currently known definition of $g$ remains valid.
+
+\subsection{Backwards Analysis and Transformation}
+\label{ssec:global-opt-bwd}
+
+Backwards analyses are performed in reverse execution order. As with forwards analyses, due to the property that forks are pairwise disjoint, each fork is analysed independently. However, unlike forwards analyses, where the analysis can diverge from a fork onwards, a backwards analysis combines the analysis from each fork before analysis of the parent body.
+
+This analysis is concerned with removing \texttt{store} instructions where the value written by the instruction is never read. As only the effect of the final \texttt{store} instruction in a sequence of \texttt{store} instructions to the same global variable dictates the value of the global variable, only the final \texttt{store} instruction is required, assuming no intervening primitive requires the stored value. 
+
+Throughout the analysis, a single set per fork is maintained, $s$. This set $s$ contains global variables that have not been read via some \texttt{load} instruction or otherwise since being defined by some \texttt{store} instruction or a primitive with an outwards global flow. The analysis uses this set to know when successive instructions can be removed, assuming any outwards global flows are never used. 
+
+We omit the details of neededness in this analysis as covered in \cref{ssec:neededness}. The analysis presented here assumes that all procedures are, unless otherwise stated, unneeded for simplicity. Within the compiler, this analysis is performed in tandem with neededness analysis, and we cannot omit procedures that are either non-pure or have some needed output. 
+
+The extended concept of neededness in the context of global variables is made concrete with the use of the set $s$. If all global variables with outwards flows are contained within the $s$, we consider the primitive unneeded. Effectively, any global variables that may be overwritten by this primitive are overwritten by some later primitive, as indicated by their membership in $s$, so the effects of the primitive are nullified.
+
+The analysis and transformations are shown in \cref{fig:lpvm-global-opt-bwd}. The $B$ rule describes the analysis and transformation of a procedure's body and initialises the map $m$ to the empty set. $B_{body}^s$ describes the analysis and transformation of a sequence of primitives, traversing the sequence in reverse and threading through the updated set, $s^\prime$, backwards through the sequence. $B_{prim}^s$ describes the transformation of a single primitive, modifying the set $s$ accordingly.
+
+\begin{figure}[htb]
+  \centering
+  \begin{align*}
+    B\bbrackets*{proc(\dots)\ttangles{\dots}:body} &= proc(\dots)\ttangles{\dots}:body^\prime
+    \shortintertext{where $(s, body^\prime) = B_{body}^\varnothing\bbrackets*{body}$} \\
+    B_{body}^s\bbrackets*{\left[\mathtt{case}\ v\left\{b_1; \dots; b_n\right.\right]} &= (\bigcap\limits_{i\in1 \dots n} s_i, \left[\mathtt{case}\ v\left\{b_1^\prime; \dots; b_n^\prime\right.\right])
+    \shortintertext{where $(s_i, b_i^\prime) = B_{body}^s\bbrackets*{b_i}$}
+    B_{body}^s\bbrackets*{[\ ]} &= (s, [\ ]) \\
+    B_{body}^s\bbrackets*{[prim \mid prims]} &= (s^{\prime\prime}, prim^\prime + prims^\prime) 
+    \shortintertext{where $\begin{alignedat}[t]{2}
+      (s^\prime, prims^\prime) &= B_{body}^s\bbrackets*{prims} \\
+      (s^{\prime\prime}, prim^\prime) &= B_{prim}^{s^\prime}\bbrackets*{prim}
+    \end{alignedat}$} \\
+    B_{prim}^s\bbrackets*{\mathtt{store}(v, \angles*{g})} &= \begin{cases*}
+      (s, [\ ]) & if $g \in s$ \\
+      (s \cup \set{g}, [\mathtt{store}(v, \angles*{g})]) & otherwise
+    \end{cases*}\\
+    B_{prim}^s\bbrackets*{\mathtt{load}(\angles*{g}, ?v)} &= (s\ \backslash\ \set{g}, [\mathtt{load}(\angles*{g}, ?v)])\\
+    B_{prim}^s\bbrackets*{\mathtt{foreign}\ proc(\dots)} &= (s, [\mathtt{foreign}\ proc(\dots)]) \\
+    B_{prim}^s\bbrackets*{proc(\dots)\angles*{i, o}} &= \begin{cases*}
+      (s, [\ ]) & if $o \subseteq s$ \\
+      ((s \cup o)\ \backslash\ i, [proc(\dots)\angles*{i, o}]) & otherwise
+    \end{cases*}\\
+    B_{prim}^s\bbrackets*{f(\dots)} &= \begin{cases*}
+      (\varnothing, [f(\dots)]) & if $resourceful(f)$ \\
+      (s, [f(\dots)]) & otherwise
+    \end{cases*}
+  \end{align*}
+  \caption{Backwards analysis and transformations of global variable manipulation in LPVM.}
+  \label{fig:lpvm-global-opt-bwd}
+\end{figure}
+
+For an LPVM \texttt{store} instruction, $\mathtt{store}(v, \angles*{g})$, semantically, some value, $v$, is written to the global variable, $g$. Where this global variable, $g$, is a member of the set $s$, the global variable has been overwritten by a successive \texttt{store} instruction, but has not been loaded. In this case, this earlier store instruction is redundant, and can be removed, as seen in \cref{lst:bwd-opt-store}. We do not modify $s$ in this case. 
+
+Otherwise, where $s$ does not contain $g$ as a member, the instruction writes a value to $g$ which is then not overwritten by a further \texttt{store} instruction without the value being loaded in between. The transformation does not remove this \texttt{store} instruction and adds $g$ to $s$.
+
+\begin{figure}[ht]
+  \setcaptiontype{lstlisting}
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}
+foreign lpvm store(u:int, <g>:int)
+# intervening primitives
+foreign lpvm store(v:int, <g>:int)
+\end{lstlisting}
+    \subcaption{Before optimisation.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.48\textwidth}
+    \begin{lstlisting}[numbers=none]
+
+# intervening primitives
+foreign lpvm store(v:int, <g>:int)
+\end{lstlisting}
+    \subcaption{After optimisation.}
+  \end{minipage}
+  \caption[Removal of a \texttt{store} instruction with backwards analysis.]{Removal of a \texttt{store} instruction with backwards analysis, assuming the global variable, \texttt{g}, is untouched in the intervening primitives.}
+  \label{lst:bwd-opt-store}
+\end{figure}
+
+All other \texttt{foreign} instructions remain unchanged. However, the set $s$ can be modified. The analysis removes all global variables from the set where the global variable flows into the primitive. For LPVM \texttt{load} instructions, the loaded global variable will be removed, as this marks a usage of any earlier stored value. For all other \texttt{foreign} instructions, the analysis does not remove any global variables from the set, as all other \texttt{foreign} instructions have no global flows. 
+
+First-order calls have an explicit annotation that denotes exactly which inwards ($i$) and outwards ($o$) global flows a procedure may have. If the analysis has found that $o \subseteq s$, we can remove the instruction, leaving $s$ unmodified. This handles the case where the procedure has no \textit{needed} outwards global flows, as all global variables overwritten by the primitive are overwritten by a later instruction, as marked by their membership in $s$. 
+
+Otherwise, as we cannot remove the primitive, the analysis uses these global flows to update the set $s$ to include global variables that have an outward flow and no global variable with an inward flow, \textit{i.e.}, $(s\ \cup\ o)\ \backslash\ i$. This removes all global variables from the set where the value \textit{may} be read, and as such earlier instructions that overwrite the global variable are required. The analysis also includes all global variables in $o$ that are not in $i$. These global variables are overwritten by the primitive, and as such, unless it is otherwise read, earlier \texttt{store} instructions are redundant. 
+
+For higher-order calls ($f(\dots)$), the higher-order call is left unmodified. As the higher-order term called does not annotate exactly which global variables the term may modify, only if the term may modify some global variable, be it with an inwards or outwards flow. In such a case, the analysis conservatively assumes that all global variables may have flowed in, being read in the call, and removes all global variables from $s$, resulting in $\varnothing$. As in \cref{ssec:global-opt-fwd}, if this call can be lowered to a first-order call, the analysis can be provided with more information regarding exactly which global variables flow into the call.
+
+\subsection{Global Flow Interface Analysis and Transformation}
+\label{ssec:global-opt-interface}
+
+Following the forwards and backwards analyses and transformations previously defined, it is possible that the global flow interface of a procedure can be reduced. \textit{I.e.}, there may be global flows that do not occur in the procedure, yet occur in the interface. This is possible through the removal of a \texttt{load} or \texttt{store} instruction never occurring within the body of a procedure, nor in effect through calling some other procedure. 
+
+Reducing the global flows is beneficial, as reduced global flow sets allow for stronger optimisations within other analyses. This includes the removal of other \texttt{load} and \texttt{store} instructions and the removal of first-order calls where it is known there is no outwards global flow.
+
+In this analysis and transformation, we define the intersection ($\cap$) of two global flows as the intersection of their component sets of global variables, respectively. That is, $\angles*{in_1, out_1}\cap \angles*{in_2, out_2} \coloneqq \angles*{in_1 \cap in_2, out_1 \cap out_2}$. Similarly, we define the union ($\cup$) of two global flows as the union of their component sets of global variables. 
+
+The goal of the analysis is to collect all \textit{effective} global flows throughout the procedure. Effective global flows are those global flows that can be seen through a call to a procedure, \textit{i.e.}, if a global variable is read or overwritten. As the interface of a procedure already dictates effective global flows of a procedure, the current interface of a procedure is taken into account for the analysis and corresponding transformation. The analysis and transformation in place in this optimisation can be found in \cref{fig:global-flow-interface}.
+
+\begin{figure}[ht]
+  \centering
+  \begin{align*}
+    I\bbrackets*{proc(...)\ttangles{in, out}:body} &= proc(...)(F\cap\ttangles{in, out}):body \\
+    \shortintertext{where $F = I_{body}^{in \cap out}\bbrackets*{body}$} \\
+    I_{body}^G\bbrackets*{\left[\mathtt{case}\ v\left\{b_1; \dots; b_n\right.\right]} &= \bigcup\limits_{i\in1 \dots n} \angles{in_i, out_i} \cup \angles*{G \cap G^\prime, \varnothing} 
+    \shortintertext{where $\begin{alignedat}[t]{2}
+      \angles{in_i, out_i} &= I_{body}^G\bbrackets*{b_i}\\
+      G^\prime &= \bigcup\limits_{i\in1 \dots n} out_i\ \backslash\ \bigcap\limits_{i\in1 \dots n} out_i
+    \end{alignedat}$}
+    I_{body}^G\bbrackets*{[\ ]} &= \angles*{\varnothing, \varnothing} \\
+    I_{body}^G\bbrackets*{[prim \mid prims]} &= \angles*{in, out} \cup \angles*{in^\prime\ \backslash\ out, out^\prime}
+    \shortintertext{where $\begin{alignedat}[t]{2}
+      \angles{in, out} &= I_{prim}\bbrackets*{prim}\\
+      \angles{in^\prime, out^\prime} &= I_{body}^G\bbrackets{prims}
+    \end{alignedat}$} \\
+    I_{prim}\bbrackets*{proc(\dots)\angles*{in, out}} &= \angles*{in, out}\\
+    I_{prim}\bbrackets*{\mathtt{load}(\angles*{g}, ?v)} &= \angles*{\set{g}, \varnothing} \\
+    I_{prim}\bbrackets*{\mathtt{store}(v, \angles*{g})} &= \angles*{\varnothing, \set{g}} \\
+    I_{prim}\bbrackets*{\mathtt{foreign}\ proc(\dots)} &= \angles*{\varnothing, \varnothing} \\
+    I_{prim}\bbrackets*{f(\dots)} &= \begin{cases*}
+      \angles*{\univ, \univ} & if $resourceful(f)$ \\
+      \angles*{\varnothing, \varnothing} & otherwise
+    \end{cases*}
+  \end{align*}
+  \caption{Analysis and transformations of global flow interfaces in LPVM.}
+  \label{fig:global-flow-interface}
+\end{figure}
+
+The analysis begins by traversing the body of a procedure with global flows $\angles*{ins, outs}$, backwards with a set, $G = in \cap out$. The set $G$ represents global variables that have both an inwards and outwards global flow in the current interface and is used throughout the analysis of the body, specifically in the analysis of flows across branches of forks. 
+
+In traversing backwards, the global flows across all branches of a fork must be combined such that the resultant set represents the global flows that occur across all branches. Na\"ively, one may decide to take the union across the flows analysed across all branches. However, this may incorrectly restrict the behaviour of some fork's global flows wherein the branches have differing global flows. 
+
+\begin{lstlisting}[
+  caption={Branches in LPVM with differing global flows.},
+  label={lst:global-flow-interface-branch-diff},
+  float=ht
+]
+foo(b, x)<{g}, {g}>:
+    case b:
+    0: 
+        # nothing
+    1:
+        foreign lpvm store(x, <g>)
+\end{lstlisting}
+
+Consider the example in \cref{lst:global-flow-interface-branch-diff}. In the \texttt{1} branch, there is an outwards global flow of the variable \texttt{g}, however there is no global flow of \texttt{g} in the \texttt{0} branch. Taking the union of these global flows results in the global flows $\angles{\varnothing, \set{\mathtt{g}}}$. 
+
+According to the current interface, the value of \texttt{g} prior to the call may be required and the value may be overwritten. While the value prior to the call is never read, it is never overwritten in the \texttt{0} branch, which follows the semantics of the current global flows, $\angles{\set{\mathtt{g}}, \set{\mathtt{g}}}$, and not $\angles{\varnothing, \set{\mathtt{g}}}$ and \texttt{g} is not overwritten. The \texttt{1} branch, however, is semantically correct under the $\angles{\varnothing, \set{\mathtt{g}}}$ global flows. The only global flows that are compatible with both branches is $\angles{\set{\mathtt{g}}, \set{\mathtt{g}}}$, even though the value of \texttt{g} is never loaded.
+
+Due to the nature of the definition of global flows, such cases can only arise wherein the procedure has an inwards and outwards flow of some global variable, else the procedure would have an outwards flow for such a global variable within the body. Such flows can be analysed by finding some outwards global flow that occurs in \textit{some} but not \textit{all} branches across a fork. 
+
+This is the purpose of the set $G^\prime$ in the case of $I_{body}$. Along with the union of all global flows that occur across all branches, $\angles{in_i, out_i}$, the analysis includes an inwards global flow for all global variables that occur in $G$ and flow outwards in some branch, but not all branches. While this set is a weaker constraint of the global flows across the fork, these global flows are correct under the original interface.
+
+Conversely, if all branches have the same, outwards only, global flow for some global variable, the global flows that do occur across the branch do not require the inclusion of inwards flows of such global variables. An example of this case can be seen in \cref{lst:global-flow-interface-branch-same} with respect to the global variable \texttt{g}. As all branches overwrite the value of \texttt{g}, the analysis can conclude that the outwards global flow does occur with no inwards flow.
+
+\begin{lstlisting}[
+  caption={Branches in LPVM with identical global flows.},
+  label={lst:global-flow-interface-branch-same},
+  float=ht
+]
+bar(b, x, y)<{g}, {g}>:
+    case b:
+    0: 
+        foreign lpvm store(x, <g>)
+    1:
+        foreign lpvm store(y, <g>)
+\end{lstlisting}
+
+For the flows between a primitive, $prim$, and the remaining primitives in the rest of a body, including some optional fork, $prims$, the analysis includes all global flows that occur within the primitive, $I_{prim}\bbrackets{prim}$. Further it excludes all flows that are \textit{killed} in the flows of $prims$, $\angles{in^\prime, out^\prime}$, by $prim$ \textit{i.e.} all global variables that flow out of $prim$. 
+
+A global variable that flows out of some primitive, but not in, has the effect of all further inwards flows of the same global variable being irrespective of the value of the global variable before the primitive. \textit{I.e.}, if the global variable is read by some primitive in $prims$, the state of the global variable does not depend on an inwards global flow. In such cases, we can remove such inwards global flows from the resultant global flows. 
+
+Once the body has been traversed backwards, the analysis results in the global flows $F$. Here, the optimisation transforms the global flows from the procedure from $\angles{in, out}$ into $F \cap \angles{in, out}$. This removes all global flows that do not occur within the procedure and are known to be transparent to the caller from the definition of the global flows sets at the creation of this procedure.
+
+For example, in \cref{lst:global-flow-interface-branch-same}, the analysis will show that both branches exhibit the same global flows, $\angles*{\varnothing, \set{\texttt{g}}}$, with the fork and entire procedure body having the same global flows throughout. The analysis has shown that the value of \texttt{g} prior to a call to \texttt{bar} is overwritten, and as such the interface of the procedure is transformed into $\angles*{\varnothing, \set{\texttt{g}}}$.
+
+In \cref{lst:global-flow-interface-branch-diff}, due to the in and out flow of \texttt{g} in the current interface of \texttt{foo}, the global flows across all branches is restricted to $\angles*{\set{\texttt{g}}, \set{\texttt{g}}}$. This results in the entire body requiring the same such global flows, and the interface of the procedure remains unchanged after the transformation.
+
+The global flows inferred through this analysis do not necessarily represent the most constricted global flows that could occur across all procedures. Much like with neededness analysis (\cref{ssec:neededness}), finding the optimal (\textit{i.e.}, the smallest) global flows would require finding a fixed point across all procedures. This fixed point would be reached where the global flows cannot be reduced further across any procedure without violating the correctness of global flows. 
+
+Such a fixed point can be found, however, the computation of such a fixed point is computationally expensive by its very nature. Empirically, across the test suite used to ensure the correctness of the compiler, finding such a fixed point does not further reduce the global flows across the tests. As such, we have chosen to omit the full fixed point of this analysis from the implementation within the Wybe compiler, much like with neededness.

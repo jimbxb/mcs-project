@@ -1,0 +1,288 @@
+\clearpage
+
+\def\oldwybeversion{https://github.com/pschachte/wybe/tree/d2b5fbc500}
+\def\newwybeversion{https://github.com/pschachte/wybe/tree/1655a61d68}
+\def\ntrials{30}
+
+\newcommand{\timeplot}[4]{
+  \begin{tikzpicture}
+    \pgfplotstableread[col sep=comma]{#1}\datatable
+    \begin{axis} [
+      xticklabels from table={\datatable}{prog},
+      xtick=data, xticklabel style={rotate=-45, anchor=north west}, 
+      ybar, ymin=0,
+      ylabel={Average Time (\si{\second})}, ylabel near ticks,
+      legend style={at={(0,-0.05)}, anchor=north east},
+      legend cell align={left},
+      width=0.6\textwidth, height=0.5\textwidth,
+      point meta=explicit symbolic,
+      nodes near coords={\IfStrEq{}{\pgfplotspointmeta}{}
+                            {\pgfmathprintnumber[fixed, fixed zerofill, print sign, precision=2]{\pgfplotspointmeta}\%}},
+      nodes near coords style={color=black, above, rotate=90, anchor=east},
+    ]
+      \addlegendimage{empty legend}
+      \addlegendentry{\textbf{#2}}
+      \foreach \class/\name in {#3/old-median, #4/new-median} {
+        \addplot table [x expr=\coordindex, y=\name, meta=delta-\name] {\datatable}; 
+        \expandafter\addlegendentry\expandafter{\class}
+      }
+    \end{axis}
+  \end{tikzpicture}
+}
+
+\newcolumntype{Q}{S[table-parse-only, table-format=-2.1, round-mode=places, round-precision=1, 
+                    explicit-sign=+, table-number-alignment=left, table-space-text-post={\%}]}
+\newcolumntype{H}{>{\setbox0=\hbox\bgroup}c<{\egroup}@{}}
+\newcolumntype{Z}{>{\setbox0=\hbox\bgroup}c<{\egroup}@{\hspace*{-\tabcolsep}}}
+
+\newcommand{\stattable}[4][Calls]{
+  \if\relax\detokenize{#1}\relax
+  \begin{tabular}{r*{6}{S[table-format=1.3, round-mode=places, round-precision=3]}Z}
+  \else
+  \begin{tabular}{r*{6}{S[table-format=1.3, round-mode=places, round-precision=3]}S[table-format=9]}
+  \fi
+    \toprule 
+    Program & \multicolumn{3}{c}{{#3 (\si{\second})}} & \multicolumn{3}{c}{{#4 (\si{\second})}} & {#1} \\
+    \cmidrule(lr){2-4}\cmidrule(lr){5-7} & $m$ & $\mu$ & $\sigma$ & $m$ & $\mu$ & $\sigma$ & \\ \midrule
+    \csvreader[
+      late after line={\\},
+      head to column names,
+      head to column names prefix=the
+    ]{#2}{}{
+      \theprog & \csuse{theold-median} & \csuse{theold-mean} & \csuse{theold-stddev} & \csuse{thenew-median} & \csuse{thenew-mean} & \csuse{thenew-stddev} & \csuse{thecall-count}
+    }
+    \midrule
+  \end{tabular}
+}
+
+\newcommand{\sizetable}[5][SLOC]{
+  \if\relax\detokenize{#1}\relax
+  \begin{tabular}{rlHHS[table-format=6]QS[table-format=5]Q}
+  \else
+  \begin{tabular}{rlS[table-format=3]QS[table-format=6]QS[table-format=5]Q}
+  \fi
+    \toprule 
+    Program & #3 & \if\relax\detokenize{#1}\relax&\else\multicolumn{2}{l}{{#1}}\fi & \multicolumn{2}{l}{{Object Size (\si{\byte})}} & \multicolumn{2}{l}{{Executable Size (\si{\byte})}} \\ \midrule
+    \csvreader[
+      late after line={\\\midrule},
+      head to column names,
+      head to column names prefix=the
+    ]{#2}{}{
+      \theprog & #4 & \csuse{theold-sloc} & & \csuse{theold-obj} & & \csuse{theold-exe} & \\
+      & #5 & \csuse{thenew-sloc} & \csuse{thesloc-diff}\% & \csuse{thenew-obj} & \csuse{theobj-diff}\% & \csuse{thenew-exe} & \csuse{theexe-diff}\%
+    }
+  \end{tabular}
+}
+
+\def\chaptertitle{Evaluation of the Extended Wybe Language}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:experiments}
+
+In this chapter, we outline the evaluation of the extended higher-order Wybe language in comparison to the previous, first-order Wybe language. We outline the programs that are used throughout the experiments, and the design and results of these experiments. Further, we analyse the results we have found.
+
+This evaluation investigates the effects of both the use of higher-order programming in comparison to the use of first-order programming and separately the globalised resource implementation strategy in comparison to the parameterised resource implementation strategy. 
+
+\section{Evaluation Environment}
+\label{sec:eval-env}
+
+Throughout this evaluation, we make use of two versions of the Wybe compiler. The first is a version of the compiler that existed before the extensions we have made to the language, the first-order Wybe compiler. The second is a version of the compiler with all extensions implemented for the Wybe language, the higher-order Wybe compiler. 
+\footnote{The first-order and higher-order versions of the Wybe compiler used in this evaluation can be found at \url{\oldwybeversion} and \\\url{\newwybeversion}, respectively.}
+
+The version of the LLVM compiler the Wybe compiler used was LLVM version 10.0.0 targeting the \texttt{x86\_64-pc-linux-gnu} architecture.
+
+The evaluation was performed on a Dell XPS\texttrademark{} 13 9360, with an Intel\textregistered{} Core\texttrademark{} i7-8550U CPU @ 1.80\si{\giga\hertz}--2.00\si{\giga\hertz} and 8\si{\giga\byte} RAM. The programs were executed within the Windows Subsystem for Linux 2, using an Ubuntu\texttrademark{} 20.04.3 LTS distribution. 
+
+\section{Benchmark Wybe Programs}
+\label{sec:analysed-programs}
+
+Throughout these experiments, we will compare the runtime and executable size of pairs of programs as listed in \cref{tab:prog-suite}. Full listings of these programs are provided in \cref{apx:programs}. Each program was written first with the use of first-order code, and later generalised with the use of higher-order code. The generalisation makes use of general-purpose higher-order procedures, such as \texttt{map}, with distinct logic extracted and parameterised. Some of these programs are also present in similar language benchmarking studies, such as the \textit{Mandlebrot} program~\cite{leissa2015graph, marr2016cross, huseinovic2015benchmark} and the \textit{N Body} program~\cite{leissa2015graph, marr2016cross, pestov2010factor}, being present in a common programming language suite, the Computer Language Benchmarking Game~\cite{guoy2008computer}. 
+
+\begin{table}[ht]
+  \centering
+  \begin{tabular}{rll}
+    \toprule
+    Program & Description & Listings \\
+    \midrule
+    Fibs        & Sum of Fibonacci numbers         & \cref{apx:programs-Fibs} \\
+    Knapsack    & Solution to the knapsack problem & \cref{apx:programs-Knapsack} \\
+    Mandlebrot  & Generation of the Mandlebrot set & \cref{apx:programs-Mandlebrot} \\
+    N Body      & Simulation of the N Body problem & \cref{apx:programs-N-Body} \\
+    Sonar Sweep & List traversal problem           & \cref{apx:programs-Sonar-Sweep} \\
+    Sort        & Sorting various data types       & \cref{apx:programs-Sort} \\
+    \midrule
+  \end{tabular}
+  \caption{Suite of benchmark programs.}
+  \label{tab:prog-suite}
+\end{table}
+
+These programs have been chosen to reflect different use cases of higher-order programming and resource usage. The \textit{Fibs} program performs a relatively small amount of higher-order calls, and instead, the term called performs the bulk of the computation. In contrast to this, the \textit{Mandlebrot} program performs a relatively high number of higher-order calls, yet the higher-order term itself performs a relatively small amount of computation. Some programs, such as the \textit{Mandlebrot}, \textit{N Body} and \textit{Sort} programs only make use of the \texttt{io} resource, whereas the \textit{Fibs}, \textit{Sonar Sweep}, and \textit{Knapsack} programs make use of resources to compute a mathematical or optimisation result.
+
+The inputs for each implementation of a program are identical. The inputs were chosen, being randomly generated where possible, to ensure that the run times across programs were comparable. The inputs chosen were designed to have a runtime around the same magnitude across all programs, and above 1 second across all tests. This threshold further ensures the stability of runtimes across tests. The exact inputs are omitted from this work due to their large size and unimportance to the work itself. 
+
+\section{Program Size}
+\label{sec:program-size}
+
+Higher-order code has the potential to increase the expressiveness available to the programmer. This, in general, can allow for programs to make greater reuse of procedures that can be generalised to take procedure arguments, modifying the internal behaviour of a procedure depending on what procedure argument was passed. 
+
+The use of global variables also has ramifications for the resultant compiled code. While the promotion of resources to global variables is transparent to an end-user, the compiled code is different, requiring alternative instructions to manipulate global variables.
+
+In these experiments, we are interested in investigating the separate effects on the size of programs. We choose to investigate the effects on program size with three metrics: object file size, executable size, and source lines of code (SLOC). Due to the compiler being deterministic, these metrics are static, requiring a single compilation for each program implementation. We will perform two experiments to control for the effects of either the usage of higher-order programming or globalised resources. 
+
+The object file size is generated by the compiler for incremental compilation, being reused if no source changes were made. This file contains information that is relevant to a single Wybe module, containing both the LPVM and LLVM representations of the module. The executable file conversely contains all code that is required to execute the program, containing code from not only the concerned module, but various libraries, with debugging and unused symbols stripped in the creation of the file.
+
+We measure the SLOC of a program by counting the number of lines of code in the source file, sans comments, and blank lines. To ensure that the formatting does not affect the SLOC of a program, we require that the formatting of code is consistent between the pair of implementations of each program.
+
+\subsection{Program Size and Higher-Order Programming}
+
+In investigating the effects of higher-order programming, both program implementations will be compiled with the extended Wybe compiler. This has the effect of controlling for the usage of global variables, as both programs will make use of globalised resources. 
+
+The baseline in this experiment will be the first-order implementation. We hypothesise that there will be mixed effects on the program size. The increased expressiveness in these programs allows for greater code reuse in some programs, and we expect to see reductions in metrics there. In programs without greater code reuse, we expect to see a small increase due to higher-order programming introducing additional procedures and executable code.
+
+\subsection{Program Size and Resource Implementation Strategy}
+
+As higher-order programming is not possible with the first-order Wybe compiler, to investigate the effects of globalised resources, we will use the first-order program implementations, with the programs being compiled with both the first-order and higher-order Wybe compilers. This also has the effect of controlling for the effects of higher-order programming, as both compiled programs will be identical. As the programs are identical, there is no information gained in investigating the SLOC.
+
+This experiment's baseline is the programs compiled with the first-order compiler. This compiler makes use of parameterised resources. Ideally, the use of either resource implementation should not have great effects on the compiled code. We hypothesise that there will be small effects on the code size, with a general increase for globalised resources due to the additional instructions required for such resources.
+
+\subsection{Results and Analysis}
+
+\subsubsection{Higher-Order Programming}
+
+In \cref{tab:size-order}, the object size, executable size, and SLOC of each program are provided, for both higher-order and first-order implementations.
+
+\begin{table}[ht]
+  \centering
+  \sizetable{\datapath/size-order-trans.csv}{Order}{First}{Higher}
+  \caption[The size of object files, compiled executables, and number of source lines of code for first-order and higher-order implementations of programs.]{The size of object files, compiled executables, and number of source lines of code (SLOC) for first-order and higher-order implementations of programs. The approximate change in each metric is provided.}
+  \label{tab:size-order}
+\end{table}
+
+The SLOC across the \textit{Fibs}, \textit{Knapsack}, \textit{Mandlebrot}, and \textit{Sonar Sweep} programs do not change with respect to the usage of first-order and higher-order programming. This is due to the higher-order procedures in the higher-order implementations being used once, having an identical number of SLOC to their first-order counterparts. 
+
+The SLOC in higher-order programs can be reduced, however, if commonplace higher-order procedures are placed in a common module, say in the standard library. Examples of this are the \texttt{map} procedure defined for the generic \texttt{list} type in both the \textit{Knapsack} and \textit{N Body} programs.
+
+Contrasting the four previous programs, the higher-order \textit{N Body} and \textit{Sort} implementations did see a reduction in the SLOC when compared to the first-order implementations. 
+
+The higher-order \textit{N Body} implementation has a reduced SLOC due to the reuse of the \texttt{map} predicate, used twice in \texttt{step}. The first-order implementation requires two separate procedures, \texttt{map\_update\_v} and \texttt{map\_update\_pos} to perform the same actions. These two procedures are very similar in structure, differing only in the procedure that is applied to each \texttt{body}. 
+
+The \textit{Sort} program shows the greatest reduction in the SLOC of all programs, reducing nearly 3/4 of the SLOC. The \textit{Sort} program implements a sorting algorithm over numerous types, with the comparison test used for each type is the only difference required for each type. In the first-order implementation, we are unable to factor this component out of the algorithm and are forced to duplicate the sorting algorithm per type required. If we also desire to change the sorting behaviour, say by sorting in reverse, we cannot simply change the comparison test but must duplicate the procedure also. 
+
+The higher-order implementation overcomes this limitation by parameterising the comparison procedure used in the sorting algorithm. As the program can now reuse the same sorting procedure per type, the SLOC is constant regardless of the number of types that require sorting. We can also change the comparison predicate without duplication of the sorting predicate.
+
+The I/O performed in this program also has similar properties, with both the \texttt{reader} and \texttt{printer} procedures parameterised for a generic type, providing similar benefits to the sorting procedure. 
+
+Excluding the \textit{Sort} program, across all programs the size of object files increases slightly. The change in object file size is caused by two effects, a change in the size of LPVM and LLVM sections in the files. Closures within a program create additional, albeit small, procedures, that lead to these increases in object file size. 
+
+In the case of the \textit{Sort} program, the object file size decreases. This corresponds with the decrease in SLOC seen for the \textit{Sort} program, as the decrease in the number of procedures leads to an overall decrease in the object file size. As with the SLOC, placing common higher-order procedures, such as the \texttt{map} procedure, into a common module in the standard library would further reduce the object file sizes, amortising the overall cost associated with an increase in object file size.
+
+The executable size is quite small for all programs, which is expected due to these files containing only the necessary instructions to execute the program in a machine code. Excluding the \textit{Sort} and \textit{Mandlebrot} programs, there is a very small increase in the executable size, which is likely a result of the additional code required for higher-order procedures, though the effect is very small. In the case of the \textit{Sort} program, the decrease is likely a result of the same effects on SLOC and object file size, with greater re-use of common procedures.
+
+\subsubsection{Resource Implementation}
+
+The effects on program size from the resource implementation used are presented in \cref{tab:size-resources}. Note that the measure of SLOC is not documented here, as the programs are identical, regardless of the use of parameterised or globalised resources.
+
+\begin{table}[ht]
+  \centering
+  \sizetable[]{\datapath/size-resources-trans.csv}{Resource}{Parameters}{Globals}
+  \caption[The size of object files, compiled executables for first-order program implementations with parameterised and globalised resources.]{The size of object files, compiled executables for first-order program implementations with parameterised and globalised resources. The approximate change in each metric is provided.}
+  \label{tab:size-resources}
+\end{table}
+
+Regarding the size of object files, we see mixed effects depending on the program. On average across all programs, we do see an overall increase in the size of object files. This likely corresponds to the additional instructions required for the manipulation of global variables.
+
+The decrease in object file size for the \textit{Mandlebrot}, \textit{N Body}, and \textit{Sort} programs with the use of globalised resources however is interesting. These programs primarily make use of the \texttt{io} resource, with the core of these programs not making use of resources at all. As the \texttt{io} resource has a \textit{phantom}, type this global variable manipulation is not translated into LLVM, which reduces the number of parameters being passed and the number of instructions overall.
+
+Across all programs, we see an increase in the executable size. We see the smallest increases in the executable sizes for the same programs that have reduced object file sizes, namely for the \textit{Mandlebrot}, \textit{N Body}, and \textit{Sort} programs. This smaller increase is a result of the decrease in the number of instructions that manipulate the global variables present in these programs, due to instructions to manipulate \textit{phantom-typed} resources not being present. 
+
+However, we do see a negligible increase overall, which is the result of executables requiring instructions to manipulate global variables. These instructions increase the executable size. Further, all programs when compiled require the use of built-in resources to handle the command-line arguments, which are translated into both global variables and some instructions for their initialisation.
+
+\section{Execution Runtime}
+\label{sec:runtime}
+
+The runtime of a program provides insight into the relevant efficiency of the program. The runtime of a program is also affected by the ability of the compiler to produce optimised code. 
+
+Higher-order programming has often been viewed as being less efficient than first-order code due to various overheads~\cite{dragos2008optimising, appel1996empirical, leissa2015graph}. Higher-order programming in Wybe has such overheads, as higher-order calls require pointer dereferences to both make the higher-order call and retrieve closed variables from the closure's environment and memory allocations for closures.
+
+The use of global variables may also have ramifications on the runtime of a program. Excessive reading and writing from memory can be slow, and as such redundant manipulation of global variables should be avoided in performant code.
+
+\subsection{Execution Runtime and Higher-Order Programming}
+
+To investigate the effects of higher-order programming on the runtime of Wybe programs, we perform a series of timed executions of each of the first-order and higher-order program implementations. Each program will be executed over a series of trials, to control for slight variations in runtime between trials of the same implementation.
+
+To control for the effects of the presence of global variables, both programs will be compiled using the higher-order Wybe compiler. 
+
+
+\subsection{Execution Runtime and Resource Implementation Strategy}
+
+In investigating the effects of global variables, a similar execution scheme will be used here, with both programs executed over a series of trials to control for variations in the runtime. 
+
+However, to control for effects on the runtime of higher-order programming, the programs will both be the first-order implementation, and instead, the programs will be compiled with the first-order and higher-order Wybe compilers. This controls for any effects of higher-order programming on the runtime.
+
+\subsection{Results and Analysis}
+
+\subsubsection{Higher-Order Programming}
+
+In \cref{tab:order-stats}, statistics regarding the runtimes across first and higher-order program implementations are presented. These statistics are produced over a series of \ntrials{} trials, with a full table of runtimes found in \cref{tab:order}. \cref{tab:order-stats} further shows the number of higher-order calls performed in the higher-order implementation of each program. 
+
+\begin{table}[ht]
+  \centering
+  \stattable[Higher-Order Calls]{\datapath/time-order-trans.csv}{First-Order}{Higher-Order}
+  \caption[Statistics of the runtimes of first-order and higher-order program implementations.]{Statistics of the runtimes of first-order and higher-order program implementations, including the medians ($m$), means ($\mu$), standard deviations ($\sigma$) and number of higher-order calls.}
+  \label{tab:order-stats}
+\end{table}
+
+Due to the nature of the distribution of the runtimes of the programs not following normal distributions, the analysis will reference the median runtimes of each program implementation. While the mean and median are similar due to the relatively large number of trials, the median forms a better representation of the data, and has been used in similar benchmarking studies~\cite{leissa2015graph}.
+
+\begin{figure}[ht]
+  \centering
+  \timeplot{\datapath/time-order-trans.csv}{Order}{First}{Higher}
+  \caption[Median runtimes of first-order and higher-order program implementations.]{Median runtimes of first-order and higher-order program implementations, annotated with the relative change in the median runtime between first-order and higher-order implementations.}
+  \label{fig:plot-order}
+\end{figure}
+
+\cref{fig:plot-order} shows the relative difference in the runtimes of first-order and higher-order program implementations. In the case of the \textit{Fibs} program, the number of higher-order calls is small. As such, we expect to not see an overall runtime difference in the program, with the results following this expectation. 
+
+Likewise, the \textit{Knapsack} program performs a relatively small number of higher-order calls. Again, we see a negligible difference in the runtimes between the higher-order and first-order implementations. 
+
+The \textit{Sonar Sweep} program performs a relatively higher number of higher-order calls. interestingly, however, the runtime of the higher-order implementation is lower than that of the first-order implementation. This difference is too small to conclude that the higher-order implementation is faster overall. Conversely, while the \textit{Sort} program performs a similar number of higher-order calls, the complexity of these higher-order calls is greater, performing more comparisons in general than the \textit{Sonar Sweep} program, which contributes to the increased runtime of the higher-order implementation. 
+
+The \textit{Mandlebrot} program performs the greatest number of higher-order calls. While the runtime of the higher-order implementation of the program is slower, this slow down is relatively small. The computation performed in the higher-order call is relatively simple, being floating-point operations and a conditional branch, which likely contributes to the relatively small overhead.
+
+The \textit{N Body} program performs the worst of all higher-order implementations compared to their first-order counterparts. The \textit{N Body} program is the most complex of the test suite, performing a nested higher-order call, with a \texttt{fold} call inside a \texttt{map} call. The higher-order term generated in the nested higher-order call, \texttt{update\_v(dt)}, must be allocated dynamically due to it closing over a variable value. This contributes to the deterioration of the higher-order implementation runtime, as this allocation occurs in each invocation of the higher-order term of the \texttt{map} procedure.
+
+This introduces the possibility of a future optimisation within the Wybe compiler. As this higher-order term is an invariant of the anonymous procedure, the generation of the term could be hoisted outside of the procedure and passed in as a fresh closed variable to the mapped procedure.
+
+\subsubsection{Resource Implementation Strategy}
+
+Statistics of the execution runtime of the \ntrials{} trials of first-order implementations, when compiled using the parameterised and globalised resource implementation strategies, are shown in \cref{tab:resource-stats}.
+
+\begin{table}[ht]
+  \centering
+  \stattable[]{\datapath/time-resources-trans.csv}{Parameterised}{Globalised}
+  \caption[Statistics of the runtimes of globalised and parameterised implementations.]{Statistics of the runtimes of globalised and parameterised implementations, including the medians ($m$), means ($\mu$), and standard deviations ($\sigma$).}
+  \label{tab:resource-stats}
+\end{table}
+
+Much like with the runtimes of the first-order and higher-order programs from before, due to the nature of the distributions of runtimes, we choose to analyse the median runtimes. Due to the relatively large number of trials the means and medians are close, however.
+
+\begin{figure}[ht]
+  \centering
+  \timeplot{\datapath/time-resources-trans.csv}{Resources}{Parameters}{Globals}
+  \caption[Median runtimes of programs with globalised and parameterised resources.]{Median runtimes of programs with globalised and parameterised resources, annotated with the relative change in the median runtime between parameterised and globalised resources.}
+  \label{fig:plot-resources}
+\end{figure}
+
+As shown in \cref{fig:plot-resources}, the relative difference in the median runtimes for the two resource implementations strategies are similar for the \textit{Knapsack}, \textit{Mandlebrot}, \textit{N Body}, \textit{Sonar Sweep}, and \textit{Sort} programs. The \textit{Fibs} program shows different behaviour, however.
+
+In the case of the \textit{Mandlebrot}, \textit{N Body}, and \textit{Sort} programs, the primary resource used is the \texttt{io} resource. As this resource has a \textit{phantom-type}, in the translation into LLVM, all references to the resource are removed. This shows that, even with the globalised resource implementation, the \texttt{io} resource has zero overhead, continuing with that of the parameterised resource implementation strategy. These programs do see a slight decrease in runtime when compiled with globalised resources, however, the difference is small and within a small margin of error. This difference is likely due to I/O being a noisy operation, which is out of the control of the program and evident due to the relatively higher standard-deviations of these programs' runtimes.
+
+The \textit{Sonar Sweep} program uses a \texttt{counter} resource to tally results before printing them. Interestingly, this \texttt{counter} resource being stored in a global variable or a local variable has little impact on the overall runtime. As neither implementation strategy performs significantly faster, we can infer that the global variable for the \texttt{counter} has likely been stored in a cache or a register, allowing for fast access, much like in the case where the resource is passed as a parameter, being stored in a stack frame or in a register.
+
+In the case of the \textit{Knapsack} program, the performance is again virtually identical when using both parameterised and globalised resources. This is the result of the same effects seen in the \textit{Sonar Sweep} program.
+
+The \textit{Fibs} program similarly makes use of a \texttt{counter} resource in tallying the sum of various Fibonacci numbers. However, an interesting optimisation occurs within the LLVM compiler for the globalised implementation that did not occur for the parameterised version. The tail-call optimisation can occur where a (recursive) call is made in the tail position, allowing the tail-call to be eliminated, being replaced with branch instructions. The Wybe compiler provides hints to the LLVM compiler where these tail calls occur, however, the LLVM compiler is not liable to perform such optimisations. 
+
+In the \texttt{fold\_step} procedure of the \textit{Fibs} program, the generated LPVM and LLVM code, represent the loop as a tail-recursive procedure. When using globalised resources, this procedure does not return a value, storing its result in the \texttt{counter} global variable, whereas with parameterised resources the \texttt{counter} variable is passed as an output. This inhibits the tail-call elimination optimisation from occurring and has the effect of producing slower code when using parameterised resources. This explains the performance gap between the two implementations

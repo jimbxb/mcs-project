@@ -1,0 +1,77 @@
+\clearpage 
+
+\def\chaptertitle{Introduction}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:intro}
+
+This research proposal is primarily concerned with an extension to an emerging programming language, Wybe~\cite{schachte2015wybe} (pronounced \textipa{["wib\textschwa]}, \textsc{Wee-Buh}), to extend the language to support higher order programming. Wybe is intended to be a language that teaches principled programming practices from learning through to practice.
+
+A defining feature of Wybe is a strong emphasis on interface integrity. Interface integrity refers to the property that all possible effects of a procedure are known from the interface alone, without the requirement to delve into finer-grained implementation details.
+
+The type system of Wybe currently supports overloading based on type and mode of the arguments of a given procedure. Overloading refers to the ability to use the same name for multiple different implementations. Overloading of modes allows procedures to be executed ``in reverse'', with arguments allowed to be input or output, depending on how the procedure is called. Modes are typical of logic languages such as Prolog~\cite{colmerauer1996birth}, however are presented differently in Wybe by allowing for explicit overloading of modes. Wybe also supports generic, or polymorphic, types. 
+
+%TC:ignore
+\begin{figure}[ht]
+  \centering
+  \begin{varwidth}{\linewidth}
+    \begin{verbatim}
+def add( x:int,  y:int, ?z:int) { ?z = x + y } 
+def add( x:int, ?y:int,  z:int) { ?y = z - x }
+def add(?x:int,  y:int,  z:int) { ?x = z - y }
+
+?a = 1; ?b = 2
+add(a, b, ?c) # binds c to a + b
+add(a, ?d, c) # binds d to c - a
+\end{verbatim}
+  \end{varwidth}
+  \caption{An example Wybe program showing the use of multiple modes. Outputs are marked with a preceding \texttt{?}, and inputs are unmarked.}
+  \label{fig:wybe-mode-example}
+\end{figure}
+%TC:endignore
+
+Wybe employs a novel message passing mechanism called resources. A resource allows data to be passed by name rather than position. They are intended to be used as a parameter that is unique in a computation and also widely used, being threaded between resourceful procedure calls automatically. The quintessential example of a resource in Wybe is the \texttt{io} resource. \texttt{io} represents the state of the outside world, providing a declarative interface for input/output operations. Each call to a procedure that uses the \texttt{io} resource ensures that a change to the ``state'' of the outside world is represented as a change in the \texttt{io} resource. Other examples of resources are the program arguments vector and count, \texttt{argv} and \texttt{argc}, respectively.
+
+%TC:ignore
+\begin{figure}[ht]
+  \centering
+  \begin{varwidth}{\linewidth}
+    \begin{verbatim}
+def print_sum(a:int, b:int) use !io {
+    ?c = a + b
+    !print(a); !print(" + "); !print(b)
+    !print(" = "); !println(c)
+}
+
+!print_sum(a, b)
+\end{verbatim}
+  \end{varwidth}
+  \caption{An example Wybe program showing use of the \texttt{io} resource. Calls to resourceful procedures, such as \texttt{print} are marked by a preceding \texttt{!}.}
+  \label{fig:wybe-resource-example}
+\end{figure}
+%TC:endignore
+
+Unlike many other languages (such as Haskell~\cite{jones2003haskell}, and Java~\cite{mazinanian2017understanding}), Wybe does not support higher order functions or procedures. That is, functions or procedures are only able to pass parameters that are first order. Higher order functions allow for code to be written at a greater level of abstraction than first order code and allows for code to be written in a distinct and principled manner that is not possible with first order code. This limits the utility and expressiveness of the Wybe language.
+
+The Wybe compiler, \texttt{wybemk}, employs a novel intermediate representation for its initial transformation and analyses phase, logic programming virtual machine (LPVM)~\cite{gange2015horn}. Despite its name, LPVM is not a virtual machine, but an intermediate representation that makes use of restricted Horn clauses, similar to that seen in logic programming languages such as Prolog~\cite{colmerauer1996birth} and Mercury~\cite{somogyi1996execution}. With the restrictions to Horn clauses, LPVM has been shown to be an efficient intermediate representation that solves many issues in other intermediate representations seen previously.
+
+\section{Research Questions}
+
+The intention of this project is to explore the design and implementation of higher order types in both the LPVM intermediate representation and the Wybe programming language. Further, to ensure that higher order types in Wybe and LPVM are able to be used effectively and provide benefit to a programmer, the extended language and intermediate representation will be compared with the current implementation of both.
+
+Motivating this proposed research, three key questions are as follows:
+\begin{itemize}
+  \item How can the existing LPVM implementation be extended to efficiently incorporate higher order types?
+  \item Can the the existing features of the Wybe language, namely resources and different properties of procedures (such as partial procedures), be extended to support higher order types?
+  \item Do these extensions allow for adequate execution when compared to the existing Wybe language and LPVM intermediate representation?
+\end{itemize}
+
+\section{Document Overview}
+
+The structure of this research proposal is as follows. 
+
+Firstly, a literature review (\cref{ch:lit-review}) in two sections; the first (\sref{sec:intermediate-representations}) of current intermediate representations, their relative strengths and weaknesses, and identification of extensions to a particular intermediate representation; second (\sref{sec:types}), outlines type systems and their abilities to type check programs, and higher order types and their implementation.
+
+Following (\cref{ch:research-plan}) is a research plan, outlining the major steps towards the design and implementation of the proposed extensions to the existing LPVM and Wybe type systems, and the experimental methodology and analyses used to evaluate the effectiveness of these extensions.

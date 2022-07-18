@@ -1,0 +1,428 @@
+\clearpage
+
+\def\chaptertitle{The Wybe Type System}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:types}
+
+In this chapter, we introduce the types that exist in the Wybe language and introduce a formalisation of the Wybe type system. We also discuss some implementation details of the type checking algorithm in the Wybe compiler, highlighting the extensions made for higher-order programming, and the constraints on the type system the algorithm places.
+
+\section{Wybe Types}
+\label{sec:wybe-types}
+
+The Wybe type system has three monomorphic types, \textit{mono-types}. Mono-types are types without any quantifiers. As the Wybe type system is polymorphic, the type system also supports polymorphic types, \textit{poly-types}, with these types present in the prenex position of a type, allowing for type variables to be universally quantified. The syntax of this type system is presented in \cref{fig:wybe-types}. This syntax differs from that found within the Wybe language, with all type variables implicitly universally quantified. 
+
+\begin{figure}[ht]
+  \centering
+  \begin{bnf*}
+    \bnfprod{type}
+      {\bnftd{var}}\\
+      \bnfmor{\bnftd{module}\bnfts{(}\bnfpn{type}^{*}\bnfts{)}}\\
+      \bnfmor{\bnfts{\{}\bnftd{mods}^{*}\bnfts{\}}\bnfts{(}\bnfpn{type-flow}^{*}\bnfts{)}}\\
+    \bnfprod{type-flow}
+      {\bnfpn{flow}\ \bnfpn{type}}\\
+    \bnfprod{flow}
+      {\bnftd{in}\ \mid\ \bnftd{out}\ \mid\ \bnftd{inout}}\\
+    \bnfprod{poly}
+      {\bnfpn{type}\ \mid\ \forall\bnftd{var}. \bnfpn{poly}}
+  \end{bnf*}
+  \caption{Types in the extended Wybe type system.}
+  \label{fig:wybe-types}
+\end{figure}
+
+This type system diverges from the types seen in the Hindley-Milner (HM) type system~\cite{hindley1969principal,damas1984type,milner1978theory}. HM requires at least one \textit{type function} to be defined, $\to$, used to define a function type in the type system. 
+
+In the Wybe type system, this function type is replaced by a \textit{procedure type}. Procedure types define the types of procedures, with procedures defined either at the top level or anonymously. A procedure type has a set of modifiers, $\mathtt{\{}mods^{*}\mathtt{\}}$, which represent certain properties of the procedure, being the determinism, purity, and the resourcefulness of the procedure. A procedure type's parameters also represent a \textit{type-flow}, a pair consisting of a type and a flow (\textit{i.e.}, $in$, $out$ (\texttt{?}), $inout$ (\texttt{!})).
+
+Before the introduction of higher-order programming in Wybe, procedure types were limited to the types of constant, first-order procedure calls. With the advent of higher-order programming in Wybe, these types can apply to arbitrary variables in the language.
+
+\section{Wybe Type System}
+\label{sec:wybe-type-system}
+
+We define the type system as a series of natural deductions in \cref{fig:type-proc}, \cref{fig:type-expr}, and \cref{fig:type-stmt}. Natural deductions are read as a series of inference rules, with the premises defined atop the horizontal rule, and the conclusions below. These inference rules are applied recursively to create a proof tree, proving the type correctness of statements and procedures. An example of such a proof tree is found in \cref{sec:wybe-type-proof}.
+
+These rules are defined with the use of a typing context, $\Gamma$. A typing context, $\Gamma$, is a collection of variables and corresponding type assignments. That is, the elements of $\Gamma$ have the form $x:t$, which has the constraint that the variable $x$ has type $t$. These typing contexts can be extended to include the assignments of more variables, with the notation of $\Gamma, x:t$. 
+
+With some typing context, $\Gamma$, we indicate the well-typing of some item, be it a statement or definition, or expression, with a turnstile, $\vdash$. \textit{I.e.}, the term $\Gamma \vdash x$ states that $x$ is well-typed under $\Gamma$. For expressions, we also indicate the type of the expression under $\Gamma$, \textit{i.e.}, $\Gamma \vdash x:t$.
+
+Typing contexts also have a partial order $\Gamma \sqsubseteq \Gamma^\prime$, which states that $\Gamma$ is a typing that is no less general than $\Gamma^\prime$. That is, for all assignments of types in $\Gamma^\prime$, $\Gamma$ has an assignment that is no less general than the assignment in $\Gamma^\prime$. The sense of generality is made concrete in \cref{sec:wybe-type-order}. This ordering is important in finding a typing context that correctly types multiple statements. 
+
+A program is considered to be type correct if all procedures defined in the program are type correct. A procedure is type correct if the body of the procedure, $s$, a sequence of statements, is type correct under the given typing context, $\Gamma$. Upon type checking $s$, the types of the parameters are extracted and used as the parameter types in the definition. The types of all used resources are checked, ensuring that the inferred type of each resource, $r_i:t^\prime_i$, aligns with the declared type of the resource, as indicated by some resource declaration that states that $r_i$ has type $t^\prime_i$.
+
+\begin{figure}[ht]
+  \begin{prooftree}
+    \AxiomC{$\Gamma,p_1:t_1,\dots,p_n:t_n,r_i:t^\prime_i,r_m:t^\prime_m,\vdash s$}
+    \AxiomC{$\forall i.\ r_i:t^\prime_i$ \text{resource}}
+      \RightLabel{\textsc{[Def]}}
+    \BinaryInfC{$\Gamma\vdash \mathtt{def\ } proc(f_1p_1:t_1,\dots,f_np_n:t_n) \mathtt{\ use\ } r_1,\dots,r_m\ \{\ s\ \}$}
+  \end{prooftree}
+  \caption{Typing rules of procedure definitions in Wybe.}
+  \label{fig:type-proc}
+\end{figure}
+
+\subsection{Expressions}
+
+The Wybe language has three expressions: variables (\textsc{Var}), constants (\textsc{Const}), and procedures (\textsc{Proc}), and anonymous procedures (\textsc{AnonProc}). The typing rules for such expressions are provided in \cref{fig:type-expr}.
+
+\begin{figure}[ht]
+  \centering
+  \begin{prooftree}
+    \AxiomC{$x:t\in\Gamma$}
+      \RightLabel{\textsc{[Var]}}
+    \UnaryInfC{$\Gamma\vdash x:t$}
+  \end{prooftree}
+  
+  \begin{prooftree}
+    \AxiomC{$c:t$ constant}
+      \RightLabel{\textsc{[Const]}}
+    \UnaryInfC{$\Gamma\vdash c:t$}
+  \end{prooftree}
+
+  \begin{prooftree}
+    \AxiomC{$\Gamma\vdash \mathtt{def\ } proc(f_1p_1:t_1,\dots,f_np_n:t_n)\ \{\ s\ \}$}
+    \AxiomC{$t = S\, \mu(f_1t_1,\dots,f_nt_n)$}
+      \RightLabel{\textsc{[Proc]}}
+    \BinaryInfC{$\Gamma\vdash proc:t$}
+  \end{prooftree}
+
+  \begin{prooftree}
+    \AxiomC{$\Gamma,\forall i.\ \mathtt{@}i:t_i\vdash s$}
+    \AxiomC{$\forall i.\ f_i = flow(s, \mathtt{@}i)$}
+      \RightLabel{\textsc{[AnonProc]}}
+    \BinaryInfC{$\Gamma\vdash \mu\set{s}:\mu(f_1t_1,\dots,f_nt_n)$}
+  \end{prooftree}
+
+  \caption{Typing rules of expressions in Wybe.}
+  \label{fig:type-expr}  
+\end{figure}
+
+The rule \textsc{Var} defines the typing of variables. Given the typing context, $\Gamma$, if there is some type assignment for the variable $x$, \textit{i.e.}, $x:t \in \Gamma$, then the system can infer that $x$ has type $t$, $x:t$.
+
+The Wybe language features several kinds of constants. These include integers, floating-point numbers, characters, strings, and C-style strings. We summarise the typing of constants with the \textsc{Const} rule. Integers and characters represent a fixed-width integral value, and as such the type of such a constant can be any type where the type has an integral representation. Strings and C-style strings can have only one type, the standard library types, \texttt{string} and \texttt{c\_string}, respectively. 
+
+A procedure definition defines a name that can be used to make a call, which can be inferred using the rule \textsc{Proc}. The type of this procedure, $\mu(f_1t_1, \dots, f_nt_n)$, is defined by the types and flows of the formal parameters of the procedure, $f_1t_1, \dots, f_nt_n$, and the modifiers, $\mu$, of the procedure, \textit{i.e.}, the purity, determinism, and usage of some resource. Using a substitution, $S$, type variables present in the procedure's type are uniformly substituted given the substitutions in $S$. The result of this substitution, $t = S\, \mu(f_1t_1,\dots,f_nt_n)$ is then inferred as the typing of the procedure. This allows the procedure to be called with differing types across calls to this procedure, enabling polymorphism in the type system.
+
+Anonymous procedures contain a nested body of statements. In the rule \textsc{AnonProc}, these statements are used to constrain the types of the holes ($\mathtt{@}i$) of the anonymous procedure. The modifiers of the anonymous procedure, $\mu$, and the corresponding types, $t_i$ and flows, $f_i = flow(s, \mathtt{@}i)$, of each hole $\mathtt{@}i$, are used to define the type of the anonymous procedure, $\mu(f_1t_1,\dots,f_nt_n)$. $\Gamma$ is also used here to ensure that the typing of variables inside the body of the anonymous procedure is consistent with that of the context the anonymous procedure is defined in.
+
+\subsection{Statements}
+
+The body of a procedure is a sequence of statements. We consider a sequence of statements to be type correct if each statement in the sequence is type correct, as seen in the \textsc{Seq} rule of \cref{fig:type-stmt}. The sequence, $s_1;s_2$ is then type correct under some typing context, $\Gamma$, with the constraint that $\Gamma$ is no less general than both the typing contexts, $\Gamma_1$ and $\Gamma_2$, which correctly type $s_1$ and $s_2$, respectively.
+
+The remainder of \cref{fig:type-stmt} defines the typing of each single statement in the Wybe language. Certain statements are always correctly typed, being the \texttt{pass}, \texttt{break}, and \texttt{next} statements. These are represented with the \textsc{Pass}, \textsc{Break}, and \textsc{Next} rules, and are correctly typed under any typing context, $\Gamma$.
+
+\begin{figure}  
+  \centering
+  \begin{prooftree}
+    \AxiomC{$\Gamma_1\vdash s_1$}
+    \AxiomC{$\Gamma_2\vdash s_2$}
+    \AxiomC{$\Gamma \sqsubseteq \Gamma_1$}
+    \AxiomC{$\Gamma \sqsubseteq \Gamma_2$}
+      \RightLabel{\textsc{[Seq]}}
+    \QuaternaryInfC{$\Gamma\vdash s_1 ; s_2$}
+  \end{prooftree}
+
+  \vspace{.5em}
+  \begin{tabular}{c@{\extracolsep{2em}}c}
+      \AxiomC{}
+        \RightLabel{\textsc{[Pass]}}
+      \UnaryInfC{$\Gamma\vdash \mathtt{pass}$}
+      \DisplayProof
+    &
+      \AxiomC{}
+        \RightLabel{\textsc{[Break]}}
+      \UnaryInfC{$\Gamma\vdash \mathtt{break}$}
+      \DisplayProof
+  \end{tabular}
+  
+  \vspace{2em}
+  \begin{tabular}{c@{\extracolsep{2em}}c}
+      \AxiomC{}
+        \RightLabel{\textsc{[Next]}}
+      \UnaryInfC{$\Gamma\vdash \mathtt{next}$}
+      \DisplayProof
+    &
+      \AxiomC{$\Gamma\vdash x:\texttt{bool}$}
+        \RightLabel{\textsc{[TestBool]}}
+      \UnaryInfC{$\Gamma\vdash x$}
+      \DisplayProof
+  \end{tabular}
+
+  \begin{prooftree}
+    \AxiomC{$\Gamma_c\vdash c$}
+    \AxiomC{$\Gamma_t\vdash t$}
+    \AxiomC{$\Gamma_e\vdash e$}
+    \AxiomC{$\Gamma \sqsubseteq \Gamma_c$}
+    \AxiomC{$\Gamma \sqsubseteq \Gamma_t$\hspace{2em}$\Gamma \sqsubseteq \Gamma_e$}
+      \RightLabel{\textsc{[If]}}
+    \QuinaryInfC{$\Gamma\vdash \mathtt{if\ }\{\ c \mathtt{\ :: \ } t \mathtt{\ |\ else :: \ } e\ \}$}
+  \end{prooftree}
+
+  \vspace{.5em}
+  \begin{tabular}{c@{\extracolsep{2em}}c}
+      \AxiomC{$\Gamma\vdash s$}
+        \RightLabel{\textsc{[Do]}}
+      \UnaryInfC{$\Gamma\vdash \mathtt{do\ }\{\ s\ \}$}
+      \DisplayProof
+    &
+      \AxiomC{$\Gamma,r:t\vdash s$}
+      \AxiomC{$r:t$ resource}
+        \RightLabel{\textsc{[Use]}}
+      \BinaryInfC{$\Gamma,r:t\vdash \mathtt{use\ } r \mathtt{\ in\ }\{\ s\ \}$}
+      \DisplayProof
+  \end{tabular}
+  
+  \begin{prooftree}
+    \AxiomC{$\Gamma\vdash p:t$}
+    \AxiomC{$\exists s = \mu(f_1t_1,\dots f_nt_n),\ s \sim t$}
+    \AxiomC{$\forall i.\ (f_i, f^\prime_i) \neq (\mathit{in}, \mathit{out})$}
+      \RightLabel{\textsc{[Call]}}
+    \TrinaryInfC{$\Gamma,\forall i.\ x_i:t_i\vdash p(f^\prime_1x_1,\dots,f^\prime_nx_n)$}
+  \end{prooftree}
+
+  \caption{Typing rules of statements in Wybe.}
+  \label{fig:type-stmt}
+\end{figure}
+
+Where a variable, $x$, has a Boolean-type, \texttt{bool}, the variable can be used as a test statement, $x$. Such a statement is type-correct under some typing context, $\Gamma$, if $\Gamma\vdash x:\mathtt{bool}$, as defined in the \textsc{TestBool} rule. 
+
+Other statements contain nested statements. These statements include conditional \texttt{if} statements (\textsc{If}), looping \texttt{do} statements (\textsc{Do}), and resource usage \texttt{use} blocks (\textsc{Use}). For these statements to be type correct, all nested statements must also be type correct.
+
+Unlike in other languages, the condition in a conditional statement is not required to have a Boolean type, and instead is required to be a correctly typed statement. As such, the type system must check recursively that the condition, $c$, then branch, $t$, and else branch, $e$, are all type correct. The system can then type check the conditional statement with a typing, $\Gamma$, that is at least as general as all of $\Gamma_c$, $\Gamma_t$, and $\Gamma_e$. This ensures that all variables across the three nested statements have a uniform typing for all variables.
+
+For \texttt{do} statements, if the body, $s$, of the statement must be type correct under some typing context, $\Gamma$, then the \texttt{do} statement is type-correct also. A \texttt{use} block has the added constraint that in the typing context, the resource, $r$, has the same type as the declared resource, $t$. This ensures that if the resource is referenced by name that the corresponding variable is typed identically to the resource. 
+
+All calls must also be type correct as defined by the \textsc{Call} rule. A call is made to some term, $p$, of type $t$, and a sequence of arguments, $x_i$. For the call to be correct, there exists some type, $s = \mu(f_1t_1,\dots f_nt_n)$ that is similar to $t$, \textit{i.e.}, $s ~ t$, where the number of arguments is $n$, the arity of $s$. Similarity (defined in \cref{fig:type-sim}) enables the typing of reified test calls and de-reified tests. Similarity further allows for partially applied calls, with the un-applied parameter's types composing the type of the final output argument, binding this argument to the partially applied term.
+
+\begin{figure}[ht]
+  \[
+    t \sim s \coloneqq \begin{cases*}
+      \forall i \leq n. \ f_it_i = g_is_i\ \land\ o = \mathtt{?bool}& if $t = \mu(f_1t_1, \dots, f_nt_n)$, $\mathtt{det} \in \mu$, \\
+       & \phantom{if} $s = \nu(g_1s_1, \dots, g_ns_n, o)$, $\mathtt{test} \in \nu$ \\
+      \forall i \leq n.\ f_it_i = g_is_i\ \land\ o = \mathtt{?bool} & if $t = \mu(f_1t_1, \dots, f_nt_n, o)$, $\mathtt{test} \in \mu$, \\
+       & \phantom{if} $s = \nu(g_1s_1, \dots, g_ns_n)$, $\mathtt{det} \in \nu$ \\
+      \forall i < n.\ f_it_i = g_is_i\ \land\ f_n = \mathtt{out}& if $t = \mu(f_1t_1, \dots, f_nt_n)$, \\
+      \quad \land\ t_n = \mu(g_ns_n, \dots, g_ms_m) & \phantom{if} $s = \mu(g_1s_1, \dots, g_ns_n, \dots, g_ms_m)$ \\
+      t = s & otherwise
+    \end{cases*}
+  \]
+  \caption{Type similarity in the Wybe type system.}
+  \label{fig:type-sim}
+\end{figure}
+
+The final condition for a call to be type correct is the flow of each argument. The flows of a call are correct if the flow of each parameter, $f_i$, and the flow of the corresponding argument, $f^\prime_i$, are not $in$ and $out$, respectively. From this call, the system is constrained to require that $x_i$ must have the type $t_i$ for the call to be correct.
+
+This condition on the flows of arguments and parameters captures two modes of the call, the direct mode and any \textit{implied modes}~\cite{somogyi1996execution}. The direct mode occurs when all parameter and argument flows are equal, pairwise, and the execution of the call behaves as defined by the procedure. Otherwise, the call is made with an implied mode, which allows for input arguments in place of output arguments. In an implied mode, this call is now a test, and the execution of this call will succeed if the input arguments are equal to the corresponding outputs of the direct mode call.
+
+\subsection{Typing Contexts and Orders}
+\label{sec:wybe-type-order}
+
+Throughout the rules defined prior, the rules make use of an ordering of typing contexts, $\Gamma \sqsubseteq \Gamma^\prime$. We say here that $\Gamma^\prime$ is a more general typing than $\Gamma$. We make the sense of this order clear in this section.
+
+This ordering is used to enable two mechanisms: polymorphism and combining typing contexts between two statements. Polymorphism is enabled through the use of a substitution of type variables from the more general typing. 
+
+\begin{figure}[ht]
+  \[
+    \Gamma \sqsubseteq \Gamma^\prime \coloneqq \exists S\, \forall x:t \in \Gamma^\prime.\ x:S\,t \in \Gamma
+  \]
+  \caption{Definition of ordering of typing contexts in the Wybe type system}
+  \label{fig:type-context-order}
+\end{figure}
+
+The ordering defined in \cref{fig:type-context-order} makes use of a substitution, $S$, which is uniformly applied to all terms that are assigned a typing in $\Gamma$. If all type assignments are equal under some such $S$, then the typing contexts have the relation $\Gamma \sqsubseteq \Gamma^\prime$. This makes use of the unification algorithm defined by Robinson~\cite{robinson1965machine}, which is also used in the HM type system.
+
+We make use of this ordering to combine various typing contexts, such as in the \textsc{Seq} rule. In the case of the \textsc{Seq} rule, the typing contexts, $\Gamma_1$ and $\Gamma_2$ are combined into one typing, $\Gamma$, such that $\Gamma \sqsubseteq \Gamma_1$ and $\Gamma \sqsubseteq \Gamma_2$. This $\Gamma$ represents a typing context that contains type assignments for all variables in both $\Gamma_1$ and $\Gamma_2$, however, their type assignments must be unifiable. This unification can be found through the composition of both substitutions.
+
+For example, suppose two statements are type correct under the typing contexts, $\Gamma_1 = \set{x:\forall a.\ \mathtt{list}(a), y:\forall a.\ a}$ and $\Gamma_2 = \set{x:\mathtt{list}(\mathtt{int}), z:\mathtt{int}}$. These can be combined to form the typing context, $\Gamma = \set{x:\mathtt{list}(\mathtt{int}), y:\mathtt{int}, z:\mathtt{int}}$, under the substitution $S = \set{a \mapsto \mathtt{int}}$.
+
+\subsection{Worked Example}
+\label{sec:wybe-type-proof}
+
+This section provides a short, worked example of the type system. The procedure we will type check is the \texttt{gcd} procedure defined in \cref{lst:gcd-prog}. This program uses an assignment procedure, \texttt{asg}, as the use of the regular assignment statement (of the form \texttt{x = ?y}) uses syntactic sugar, which would complicate the example. The proof is broken into five parts in \cref{fig:gcd-type-proof}.
+
+\begin{lstlisting}[
+  caption={Example GCD program in Wybe.},
+  label={lst:gcd-prog},
+  float=ht
+]
+def gcd(x, y, ?z) {
+    do {
+        if { nz(y) ::
+            pass
+        | else ::
+            break
+        }
+        asg(y, ?t)
+        mod(x, t, ?y)
+        asg(t, ?x)
+    }
+    asg(x, ?z)
+}
+\end{lstlisting}
+
+In this proof, we assume that there are procedures, \texttt{mod}, \texttt{asg} (assign), and \texttt{nz} (non-zero), defined that are type correct, and have types $\set{\texttt{det}}(\mathtt{int}, \mathtt{int}, \mathtt{?int})$, $\forall \mathtt{X}.\ \set{\texttt{det}}(\mathtt{X}, \mathtt{?X})$, and $\set{\texttt{test}}(\mathtt{int})$, respectively. That is to say that $\Gamma \vdash \mathtt{mod}:\set{\texttt{det}}(\mathtt{int}, \mathtt{int}, \mathtt{?int})$, \textit{etc}.
+
+\begin{figure}[ht]
+  \def\extraVskip{6pt}
+  \def\defaultHypSeparation{\hskip .19in}
+
+  \vspace{1em}
+  \begin{subfigure}{\textwidth}
+    \begin{prooftree}
+      \AxiomC{$\Gamma\vdash\mathtt{nz}:\set{\texttt{test}}(\mathtt{int})$}
+      \UnaryInfC{$\Gamma_{\mathtt{nz}}=\Gamma,\mathtt{y}:\mathtt{int}\vdash \mathtt{nz(y)}$}
+      \AxiomC{$\Gamma\vdash \mathtt{pass}$}
+      \AxiomC{$\Gamma\vdash \mathtt{break}$}
+      \TrinaryInfC{$\Gamma_{\mathtt{nz}}\vdash \mathtt{if \set{ nz(y) :: pass \mid else :: break }}$}
+      \AxiomC{$\Gamma\vdash \mathtt{asg}:\set{\texttt{det}}(\mathtt{int}, \mathtt{?int})$}
+      \UnaryInfC{$\Gamma,\mathtt{t}:\mathtt{int},\mathtt{y}:\mathtt{int}\vdash \mathtt{asg(y, ?t)}$}
+      \BinaryInfC{$\Gamma_{\mathtt{nz}},\mathtt{t}:\mathtt{int}\vdash\mathtt{if \set{ nz(y) :: pass \mid else :: break }};\mathtt{asg(y, ?t)}$}
+    \end{prooftree}
+    \caption{Type checking $s_1 \coloneqq \mathtt{if \set{ nz(y) :: pass \mid else :: break }};\mathtt{asg(y, ?t)}$ in the \texttt{gcd} procedure.}
+    \label{fig:gcd-prog-s1}
+  \end{subfigure}
+
+  \vspace{1em}
+  \begin{subfigure}{\textwidth}
+    \begin{prooftree}
+      \AxiomC{$\Gamma\vdash\mathtt{mod}:\set{\texttt{det}}(\mathtt{int}, \mathtt{int}, \mathtt{?int})$}
+      \UnaryInfC{$\Gamma_{\mathtt{mod}}=\Gamma,\mathtt{x}:\mathtt{int},\mathtt{t}:\mathtt{int},\mathtt{y}:\mathtt{int}\vdash \mathtt{mod(x, t, ?y)}$}
+      \AxiomC{$\Gamma\vdash \mathtt{asg}:\set{\texttt{det}}(\mathtt{int}, \mathtt{?int})$}
+      \UnaryInfC{$\Gamma,\mathtt{x}:\mathtt{int},\mathtt{t}:\mathtt{int}\vdash \mathtt{asg(t, ?x)}$}
+      \BinaryInfC{$\Gamma_{\mathtt{mod}}\vdash \mathtt{mod(x, t, ?y)};\mathtt{asg(t, ?x)}$}
+    \end{prooftree}
+    \caption{Type checking $s_2 \coloneqq \mathtt{mod(x, t, ?y)};\mathtt{asg(t, ?x)} $ in the \texttt{gcd} procedure.}
+    \label{fig:gcd-prog-s2}
+  \end{subfigure}
+
+  \vspace{1em}
+  \begin{subfigure}{\textwidth}
+    \begin{prooftree}
+      \AxiomC{$\Gamma_{\mathtt{nz}},\mathtt{t}:\mathtt{int}\vdash s_1$}
+      \AxiomC{$\Gamma_{\mathtt{mod}}\vdash s_2$}
+      \AxiomC{$\Gamma_{\mathtt{mod}} \sqsubseteq \Gamma_{\mathtt{nz}},\mathtt{t}:\mathtt{int}$}
+      \TrinaryInfC{$\Gamma_{\mathtt{mod}}\vdash s_1;s_2$}
+      \UnaryInfC{$\Gamma_{\mathtt{mod}}\vdash \mathtt{do}\set{s_1;s_2}$}
+      \AxiomC{$\Gamma\vdash \mathtt{asg}:\set{\texttt{det}}(\mathtt{int}, \mathtt{?int})$}
+      \UnaryInfC{$\Gamma,\mathtt{x}:\mathtt{int},\mathtt{z}:\mathtt{int}\vdash \mathtt{asg(x, ?z)}$}
+      \BinaryInfC{$\Gamma_{\mathtt{mod}},\mathtt{z}:\mathtt{int}\vdash \mathtt{do}\set{s_1;s_2};\mathtt{asg(x, ?z)}$}
+    \end{prooftree}
+    \caption{Type checking $s \coloneqq \mathtt{do}\set{s_1;s_2};\mathtt{asg(x, ?z)}$ in the \texttt{gcd} procedure.}
+    \label{fig:gcd-prog-s}
+  \end{subfigure}
+  
+  \vspace{1em}
+  \begin{subfigure}{\textwidth}
+    \begin{prooftree}
+      \AxiomC{$\Gamma,\mathtt{x}:\mathtt{int},\mathtt{t}:\mathtt{int},\mathtt{y}:\mathtt{int},\mathtt{z}:\mathtt{int}\vdash s$}
+      \UnaryInfC{$\Gamma\vdash \mathtt{def\ gcd(x:int,y:int,?z:int)} \set{ s }$}
+    \end{prooftree}
+    \caption{Type checking of the definition of the \texttt{gcd} procedure.}
+    \label{fig:gcd-prog-def}
+  \end{subfigure}
+  \caption{Proof of type correctness of the \texttt{gcd} procedure.}
+  \label{fig:gcd-type-proof}
+\end{figure}
+
+Throughout the body of the procedure, we will use an instantiation of \texttt{asg} to assign \texttt{int} values. As the definition of \texttt{asg} is generic, having the type $\forall \mathtt{X}.\ \set{\texttt{det}}(\mathtt{X}, ?\mathtt{X})$, and under the substitution of $\set{\mathtt{X}\mapsto \mathtt{int}}$, we can infer that $\set{\texttt{det}}(\mathtt{int}, ?\mathtt{int})$, is a valid instantiation of \texttt{asg}. 
+
+Next, in \cref{fig:gcd-prog-s1}, we know that \texttt{nz} has the type $\set{\texttt{test}}(\mathtt{int})$, and hence from the call \texttt{nz(y)}, we can infer that \texttt{y} must have type \texttt{int}, resulting in the typing context $\Gamma_{\mathtt{nz}}$. As \texttt{pass} and \texttt{break} are well-typed in all contexts, $\mathtt{if \set{ nz(y) :: pass \mid else :: break }}$ is also well typed under $\Gamma_{\mathtt{nz}}$. Using the instantiation of \texttt{asg}, we can infer that $\Gamma,\mathtt{t}:\mathtt{int},\mathtt{y}:\mathtt{int}$ can well type \texttt{asg(y, ?t)}. The sequence of these two statements, $s_1$ is also well typed under the typing $\Gamma_{\mathtt{nz}},\mathtt{t}:\mathtt{int}$.
+
+Similarly, in \cref{fig:gcd-prog-s2}, we can well type \texttt{mod(x,t,?y)} under $\Gamma_{\mathtt{mod}}=\Gamma,\mathtt{x}:\mathtt{int},\mathtt{t}:\mathtt{int},\mathtt{y}:\mathtt{int}$, and we can use the same instantiation of \texttt{asg} to infer that $\Gamma,\mathtt{t}:\mathtt{int},\mathtt{x}:\mathtt{int}$ can well type \texttt{asg(t, ?x)}. The sequence of these two calls, $s_2$, also is well typed under $\Gamma_{\mathtt{mod}}$.
+
+Sequencing $s_1$ and $s_2$ in \cref{fig:gcd-prog-s} is well typed under $\Gamma_{\mathtt{mod}}$. The sequence of $s = \mathtt{do}\set{s_1;s_2};asg(x,?z)$ is similarly well typed under $\Gamma_{\mathtt{mod}},\mathtt{z}:\mathtt{int}$, using the well-typing of \texttt{do} block and the same instantiation of \texttt{asg}.
+
+In result, we have shown that in the body of \texttt{gcd}, $s$ is well-typed, with the typing of parameters, \texttt{x:int}, \texttt{y:int}, \texttt{z:int}. Hence, in \cref{fig:gcd-prog-def} we conclude the definition of \texttt{gcd} is type correct.
+
+\section{Wybe Type Checking Algorithm}
+
+With the rules defined in \cref{sec:wybe-type-system}, we can construct an algorithm that performs both type checking and type inference. This algorithm checks for type-correctness of all Wybe modules in a program. We do not define the algorithm in detail due to the work not being part of the work of this thesis, however, we provide a sketch of the algorithm and the relevant extensions made to enable higher-order programming.
+
+Prior to the algorithm's execution, terms present in the AST are flattened into a constrained subset of AST terms with equivalent semantics. For example, a function call expression, $\mathtt{f(x, y)}$ is transformed into a preceding statement, \texttt{f(x, y, ?$tmp$)}, and the fresh variable $tmp$ is used in its place. Similarly, statements such as \texttt{f(x) = ?y} are transformed into \texttt{f(x, ?y)} statements. This simplifies the type inference algorithm, as fewer expressions are required to be handled in the algorithm and corresponding rules, due to these expressions being flattened into statements.
+
+A point where this algorithm diverges from algorithms, such as Algorithm W~\cite{damas1982principal}, which implements a type inference algorithm using the rules defined by the HM type system, is the consideration of overloading. Overloading is not handled in such algorithms but must be considered in the Wybe language, due to the presence of overloading in the language. Overloading is implicit in the typing rules defined in \cref{sec:wybe-type-system}, as where there may be multiple defined procedures with the same name, one is chosen non-deterministically in the type checking of a call. In the type checking algorithm, however, overloading must be handled explicitly.
+
+With procedure overloading, a \textit{potential call graph} arises. The potential call graph considers the possible overloading resolutions across all calls in the body of each procedure, with a node in the graph representing a procedure, and an edge corresponding to a \textit{potential call}. That is, if $foo$ calls some procedure $bar$, then there is a directed edge from $foo$ to all procedures that resolve to $bar$. Module qualifications to the name allow for this set of procedures to be constrained, such that the qualified module is a super-module of the potential procedures' modules. The potential call graph does not consider the mode, nor arity of the calls, merely the (module qualified) name. 
+
+A concrete example of a translation from a set of Wybe modules to a potential call graph is found in \cref{fig:potential-call}. For these modules, the SCCs in bottom-up order of the potential call graph are: $\mathtt{\set{a.foo, b.foo},\ \set{c.foo},\ \set{a.bar}}$.
+
+\begin{figure}[ht]
+  \centering
+  \begin{subfigure}[b]{0.49\textwidth}
+    \begin{lstlisting}
+module a {
+    pub def foo(x) { b.foo(x) }
+    pub def bar(x) { a.foo(x) }
+}
+
+module b {
+    pub def foo(x) { a.foo(x) }
+}
+
+module c {
+    def foo(f, x) {
+        foo(x)
+        f(x)
+    }
+}
+\end{lstlisting}
+    \caption{Wybe program without all explicit module qualifications.}
+  \end{subfigure}\hfill
+  \begin{subfigure}[b]{0.49\textwidth}
+    \centering
+    \begin{tikzpicture}[
+      auto,
+      shorten >=1pt,
+      node distance = 7em
+    ]
+      \node[circ] (cFoo) []              {c.foo};
+      \node[circ] (aFoo) [right of=cFoo] {a.foo};
+      \node[circ] (aBar) [above of=aFoo] {a.bar};
+      \node[circ] (bFoo) [below of=aFoo] {b.foo};
+
+      \path[arrow, loop left]  (cFoo) edge (cFoo);
+      \path[arrow, bend left]  (cFoo) edge (aFoo);
+      \path[arrow, bend right] (cFoo) edge (bFoo);
+      \path[arrow, bend left]  (bFoo) edge (aFoo);
+      \path[arrow, bend left]  (aFoo) edge (bFoo);
+      \path[arrow]             (aBar) edge (aFoo);
+    \end{tikzpicture}
+    \caption{The potential call graph of the Wybe program.}
+  \end{subfigure}
+  \caption{Translation of a Wybe program into a potential call graph.}
+  \label{fig:potential-call}
+\end{figure}
+
+With the potential call graph, the algorithm considers the strongly connected components (SCCs) of the graph. The SCCs define an ordering on procedures, with callee procedures considered after the callers. As the semantics we desire for Wybe specify that the typing of a procedure depends only on the definition, not on the typing of any calling procedure, procedures must be considered bottom-up through the potential call graph.
+
+Higher-order calls are also recognised here. A call to some non-module qualified name where the name is bound to a higher-order type is recognised as a higher-order call. In the type inference algorithm, we exclude all other overloadings for this call, enforcing that this call must be to the higher order term defined elsewhere in the procedure. An example of such a call that can be recognised as a higher-order call is the call to \texttt{f} in \texttt{c.foo} of \cref{fig:potential-call}. 
+
+With this ordering, however, the algorithm must handle a cyclic SCC carefully. As the typing of a procedure depends on the procedures it calls, the typing of a called procedure may not fully be inferred. As such, the typing of each procedure is approximated to the most general type, with the types of procedures being refined through each iteration of type checking over each procedure in the cyclic SCC. This process can terminate if there is some un-recoverable type error or a fixed point is reached where the typings cannot further be refined. 
+
+This algorithm is also performed in two parts: type checking and mode checking. Type checking is mode-agnostic and is implemented to discover the typing of all variables in a given procedure. After, mode checking is performed top-down on the AST, modifying procedure calls into their fully module-qualified selves. Mode checking further ensures that variables are correctly bound, requiring that a variable is unconditionally bound before it is used, and that resources are appropriately in scope for all calls.
+
+In type checking a procedure's body, overloading can lead to multiple correct typings. In such a case, the algorithm reports an overloading error. In \cref{lst:overload-fail}, we see a program that defines two overloaded versions of \texttt{add2} implementing an integer and floating point sum of two numbers, respectively. In the definition of \texttt{add3}, two calls are made to \texttt{add2}. However, with no constraints on the types of the inputs, the overloading resolution leads to two possible typings, where all of \texttt{a}, \texttt{b}, \texttt{c}, and \texttt{d} have either an inferred type of \texttt{int} or \texttt{float}, and as such reports an overloading error. This error can be resolved with the use of a explicit type constraint on any of the variables in the body of \texttt{add3}.
+
+\begin{lstlisting}[
+  caption={Example program where overloading cannot be resolved.},
+  label={lst:overload-fail},
+  float=ht
+]
+def add2(a:float, b:float, ?c:float) {
+    # omitted implementation of floating point add
+}
+
+def add2(a:int, b:int, ?c:int) {
+    # omitted implementation of integer add
+}
+
+def add3(a, b, c, ?d) {
+    add2(a, b, ?t)
+    add2(t, c, ?d)
+}
+\end{lstlisting}
+
+Note that the ordering of calls is irrelevant in the body of a type correct procedure and that only calls can be used to place constraints on variables. As such, the algorithm does not consider non-call statements, however does consider the nested calls in such statements. All non-call statements place constraints on the variables inside the body of a procedure, and these constraints along with programmer-defined constraints are used to construct an approximate typing context. Each call is also paired with each possible resolution of such a call. The algorithm maintains the invariant that only possibly type correct overloading resolutions are kept. 
+
+The algorithm in place in the Wybe compiler performs a heuristic backtracking search. With a candidate typing context, type constraints can eliminate possible overloading resolutions. If no possible overloadings remain, the candidate typing is abandoned and a type error is reported. If multiple candidate typings are found to be correct for all calls, an overloading error is reported and all such candidate typings are abandoned. 

@@ -1,0 +1,117 @@
+\clearpage
+
+\def\chaptertitle{Research Plan}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:research-plan}
+
+The plan for this research is broken into three stages that follow the research questions.
+
+\begin{enumerate}
+  \item Formalise and implement a higher-order extension to the existing LPVM intermediate representation (\sref{sec:plan-lpvm})
+  \item Formalise the existing Wybe type system and extend this type system to support higher-order types, then implement this type system in the current Wybe implementation (\sref{sec:plan-wybe})
+  \item Evaluate the performance of higher-order constructs in Wybe (\sref{sec:plan-evaluation})
+\end{enumerate}
+
+\section{Logic programming virtual machine extension}
+\label{sec:plan-lpvm}
+
+The intermediate representation that Wybe uses, LPVM, does not have support for higher order types. In order to support higher order types in Wybe, LPVM must be extended to natively support higher order types.
+
+The state of the current type system incorporated with LPVM is undocumented. Developing a set of typing rules and semantics would benefit the state of the LPVM implementation. With this developed typing rules and semantics, extensions, such as the proposed higher order extension, can be founded upon a rigorous type system. 
+
+The development of these typing rules, semantics, and the higher order extension will require a series of proofs of the system being sound. This provides the rigorous foundation upon which further extensions can be derived.
+
+Once completed, the implementation of LPVM in the Wybe compiler can also be extended to make use of the higher order extension. This will also require mapping constructs in LPVM to LLVM constructs in order to be used in the Wybe compiler. Further, if holes exist in the existing implementation that can be uncovered with formal reasoning, the implementation can be made more rigorous.
+
+\section{Wybe extensions}
+\label{sec:plan-wybe}
+
+With the Wybe compiler making use of LPVM as its primary internal representation, after extending LPVM to support higher order types, we can implement a higher order type system for Wybe. 
+
+Wybe supports numerous features that are unique to, or at least not largely seen, in the language design space. Common with languages such as Prolog, arguments to a procedure call can be in different modes, with arguments as an input or an output, and further in Wybe can be both an input and an output. Features such as the overloading of modes and resources in Wybe provide a point of novelty towards the extended type system of Wybe. 
+
+As with LPVM, the type system of Wybe is not formally documented. With the creation of typing rules and corresponding proofs, we can provide a formal basis for the Wybe type system and extensions to the type system. 
+
+Higher order types and resources is an untravelled road. With the state of a resource requiring being thread through the programs structure, issues regarding how these resources can be passed arise. Generally, we can consider four approaches towards the design of resourceful higher order procedures, however which option we will implement is currently unknown until we can determine how we can ensure interface integrity with some of the less restrictive options. 
+
+One option is to disallow arguments to higher order procedures to use resources. This option is not ideal, as it significantly limits the utility of such procedures as any resourceful procedure cannot be passed as an argument. 
+
+A less constrained approach is to allow higher order types to specify the mode and type of resources that will be used. A limitation of this system is the requirement that, even if two or more resources have the same type, the use of each resource in a higher order type would require an overloaded definition of the resourceful procedure. These overloaded definitions could share the same body, yet the source code would require duplication of the body, leading to poor language design.
+
+To contrast the restrictive approach mentioned above, higher order procedures could remove the annotation of which resources each parameter could use yet still allow for the parameters to use resources. Instead, when calling a higher order procedure, if the parameters use resources, the program could transform the call to a specialised form that makes use of the provided resources, akin to the previous approach. This possibly also violates a leading design principle behind Wybe of interface integrity. This is due to the interface of a resourceful procedure not specifying that the parameters could make use of a resource.
+
+Allowing resources used by a procedure to be defined polymorphically is a further approach that could be used as a compromise between the two former approaches, and will be the approach used in this research. Contrasting the second approach of having all resource usage explicit, this approach would allow a resource to be defined to have a polymorphic type. This alleviates the restriction of the previously mentioned approach requiring duplication of procedure's bodies in the source code.
+
+Wybe also allows for procedures to be tagged based on certain properties. The \texttt{test} or \texttt{partial} tag specifies a function that may fail, for instance, or \texttt{terminal} that specifies that a procedure will never return. Ideally, higher order types should also be able to specify if the procedure is tagged, allowing for the compiler to perform certain optimisations with higher order types.
+
+The implementation of higher order types in programming languages is typically performed with the use of closures, and will be the adopted implementation strategy here. The elimination of closures, however, has been shown to have a significant performance increase~\cite{leissa2015graph}, allowing for higher order code to perform as efficiently as first order code. As such, wherever possible, closures will be attempted to be eliminated, such as through inlining.
+
+Wybe's syntax is also unique, and supporting extensions to the language will require new syntax for these extended features. In place of currying and partial application as seen in languages such as Haskell and ML, we can perform similar effects through the use of anonymous procedures. We propose a new syntax for anonymous procedures that make use of ``holes''. In this proposed syntax, a hole (\texttt{@}), can be used in place of a variable, meaning that this argument is to be specified later, forming forming the interface of the anonymous function. For holes that are in output mode, the prefix {?} is used, as is standard in Wybe currently. 
+
+For example, \texttt{?fooBar = }\{\texttt{ foo(@, bar, ?@) }\}, binds to \texttt{fooBar} an anonymous procedure that calls \texttt{foo}, with the first argument as the first input of the anonymous procedure, the second with the value of \texttt{bar}, and the third as the output of the anonymous procedure. As \texttt{bar} is not defined inside the body of the anonymous procedure, this anonymous procedure must be a closure with \texttt{bar} as a free variable.
+
+To extend this syntax to be more flexible, the position of an argument can be specified with a positive integer after each \texttt{@}. For example, a call to \texttt{map} with an anonymous procedure could be represented as \texttt{?out = map(}\{\texttt{?t = @1 + sin(@1); ?@2 = t * cos(t)}\}\texttt{, in)}, which binds \texttt{out} to the list which contains the anonymous procedure (between the braces) applied to each element of \texttt{in}. This also allows for the same input to be used multiple times in the anonymous procedure, which is not possible succinctly without the numbering scheme.
+
+With this numbering scheme, we can also reorder the arguments of an anonymous procedure. For instance, \texttt{?fooBar = }\{\texttt{ foo(@2, bar, ?@1) }\} would bind \texttt{fooBar} as above, however with the closure's arguments in reversed order.
+
+\section{Evaluation}
+\label{sec:plan-evaluation}
+
+In order to evaluate the implementation of higher order programming in Wybe, two factors will be considered: program execution time and program executable size.
+
+Execution is a widely used metric for evaluating the effectiveness of the implementation of a language feature and the performance of such a feature~\cite{chen2020multiple,xu2017fusing,leissa2015graph}. As is typical in the testing of performance via execution time, each test will be executed numerous times, with the average time taken as the ``true'' time. Averaging in this way allows for a control over factors that may effect the runtime of a program due to varying loads on a CPU in varying runs of each test.
+
+Executable size will also be evaluated to ensure that the extensions to Wybe do not cause a significant increase in the executable size of Wybe programs. While it is not used widely as a metric to evaluate the performance of a language feature, this property is worth evaluation as there is potential for exponential blow-up in the size of executables if the implementation of higher order constructs is not carefully considered
+
+Currently, there does not exist a large sample of non-trivial Wybe programs. To evaluate the performance of Wybe code, various benchmark programs will be synthesised (sourcing from the Computer Language Benchmarking Game~\cite{guoy2000computer}, a widely used benchmarking suite~\cite{chen2020multiple,leissa2015graph}) or borrowed from existing sources (such as the N-body problem in Wybe~\cite{chen2020multiple}). These programs will incorporate, or be modified to include, higher order code constructs.
+
+To effectively evaluate the performance of higher order Wybe programs, we require a baseline. To act as such a baseline, the set of programs previously mentioned will be translated to into first order code (by inlining and flattening higher order code). 
+
+For higher order code to be useful in the Wybe language, the performance of such code should be close to that of equivalent first order code. If it is found that there is a significant bottleneck in the performance of Wybe code in the presence of higher order constructs, it is likely that a redesign or different implementation of the compiler would be necessary. If it is found that the size of executables is much larger in the presence of higher order code, then this also indicates the implementation may be poor.
+
+The hypothesis for the evaluation of execution time, however, is that there will be an increase in execution time, corresponding to a decrease in performance when using higher order code. This hypothesis is due to the overheads associated with higher-order constructs, such as closure construction and calling.
+
+While an increase in execution time seems like a serious drawback to using higher order constructs, the increased expressiveness bought by higher order types adds richness to the language. With a small increase in the execution time, the increased benefit of increased expressiveness may be beneficial, and outweigh the slight increase in execution time. Ideally, this performance overhead should aim to be as small as possible.
+
+Further, the hypothesis is that higher order code will have multiple effects on the executable code size of Wybe programs. The creation and execution of closures will cause an increase in the amount of code generated, as closure creation and calling requires extra instructions. However, the functional paradigm shift can allow for greater reuse of code, especially in tandem with generic types, leading to decreases in other aspects of an executable's size, such as a reduction of duplicated code.
+
+\section{Timeline}
+
+The general timeline for the proposed research is outlined in the Gantt chart in \fref{fig:timeline}. As the Wybe compiler makes heavy use of LPVM to perform various analyses and transformations, it is pertinent that the LPVM implementation occurs before the Wybe implementation.
+
+%TC:ignore
+\begin{figure}[h]
+  \centering
+  \hspace*{-3.3cm}
+  \begin{ganttchart}[
+      x unit=0.45cm,
+      y unit title=0.5cm,
+      y unit chart=0.5cm,
+      title height=1,
+      vgrid, 
+      hgrid,
+    ]{1}{30}
+    \gantttitle{2021 Sm2}{5}\gantttitle{Exam period/Break}{12}\gantttitle{2022 Sm1}{13}\\
+    \gantttitle{}{1}\gantttitlelist{9,10,11,12}{1} 
+    \gantttitle{}{12} 
+    \gantttitlelist{1,...,6}{1}\gantttitle{ }{1}\gantttitlelist{7,...,12}{1}\\
+    \ganttbar{Thesis writing}{15}{30} \\
+    \ganttgroup{LPVM extension}{1}{8} \\
+    \ganttbar{Formalisation}{1}{4} \\
+    \ganttlinkedbar{Implementation}{5}{8} \\
+    \ganttgroup{Wybe extension}{9}{20} \\
+    \ganttbar{Formalisation}{9}{12} \\
+    \ganttlinkedbar{Implementation}{13}{15} \\
+    \ganttlinkedbar{Resources}{16}{18} \\
+    \ganttlinkedbar{Optimisations}{19}{20} \\
+    \ganttgroup{Evaluation}{21}{26} \\
+    \ganttbar{Programming}{21}{23} \\
+    \ganttlinkedbar{Testing}{24}{26}
+  \end{ganttchart}
+  \caption{Proposed research timeline. }
+  \label{fig:timeline}
+\end{figure}
+%TC:endignore

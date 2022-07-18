@@ -1,0 +1,13 @@
+prog,class,obj,exe,sloc
+Fibs,First,75128,19088,19
+Fibs,Higher,80048,19160,19
+Knapsack,First,268680,19496,52
+Knapsack,Higher,272904,19568,52
+Mandlebrot,First,223040,24384,32
+Mandlebrot,Higher,241440,24376,32
+N Body,First,385536,24608,71
+N Body,Higher,434064,24768,64
+Sonar Sweep,First,107496,19400,31
+Sonar Sweep,Higher,113256,19472,31
+Sort,First,463736,29800,134
+Sort,Higher,179360,29488,37

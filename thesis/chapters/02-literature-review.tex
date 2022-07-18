@@ -1,0 +1,352 @@
+\clearpage
+
+\def\chaptertitle{Literature Review}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:lit-review}
+
+\section{Higher-Order Programming}
+\label{sec:lit-review--higher-order-programming}
+
+Higher-order programming refers to the paradigm of programming that makes use of higher-order terms. In contrast to first-order terms, where each value is a concrete value, higher-order programming promotes functions to first-class members of the language. A function term can be called with arguments, as in the case of a regular function call. However, a higher-order call can be made to a variable function. 
+
+In \cref{lst:lit-review--higher-order-eg}, we see an example of some Haskell code that makes use of higher-order programming. The term \texttt{f} in the definition of \texttt{map} is a function value, which is applied to all values inside a list, recursively. The terms \texttt{ls0} and \texttt{ls1} are then defined with the use of the \texttt{map} function, applying a defined procedure, \texttt{add10}, and a lambda function to all values within the list \texttt{[1, 2, 3]}.
+
+\begin{lstlisting}[
+  caption={Example higher-order program written in Haskell.},
+  label={lst:lit-review--higher-order-eg},
+  float=ht
+]
+map :: (a -> b) -> [a] -> [b]
+map f []     = []
+map f (x:xs) = f x : map f xs
+
+add10 :: Int -> Int
+add10 x = x + 10
+
+ls0 = map add10 [1, 2, 3]
+ls1 = let y = 10 in map (\x -> x + y) [1, 2, 3]
+\end{lstlisting}
+
+Higher-order programming is a hallmark of the functional programming paradigm, yet is increasingly prominent in other paradigms, such as imperative programming. Early high-level functional programming languages, such as LISP~\cite{mccarthy1960recursive}, paved the foundations for later implementation in other languages.
+
+Programming languages can broadly be divided into two categories, depending on the features of the language which support functions as a value. Languages that support functions as second-class citizens allow for higher-order programming through the use of function pointers or related features. In contrast to this, a language may feature functions as first-class citizens of the language, which more naturally represent functions in the language without the use of pointers. 
+
+Languages with first-class functions, in conjunction with nested or anonymous function declarations, naturally allow for the introduction of \textit{free variables}, \textit{i.e.}, variables that are defined out of the scope of the definition. An example of a free variable is the variable \texttt{y} in \cref{lst:lit-review--higher-order-eg}. The lambda function makes use of \texttt{y}, which is defined in the parent scope of the definition of the lambda function.
+
+\subsection{Implementation}
+\label{ssection:lit-review--impln}
+
+In early compilers for functional programmers, lambda lifting was a transformation used, transforming a nested set of function definitions into a set of global function definitions~\cite{johnsson1985lambda}. This transformation is performed in two parts: first, by eliminating free variables by adding parameters to any nested definition, and next by \textit{lifting} nested definitions into the global scope. This transformation also requires all call sites to be adjusted to ensure the previously free variables are passed as arguments. In modern compilers, this transformation is used in conjunction with other techniques~\cite{leissa2015graph}. The reverse transformation to lambda lifting is lambda dropping, reducing the scope of a function call, allowing for simpler analysis due to the decreased scope~\cite{danvy1997lambda}. 
+
+An alternative to lambda lifting is called closure conversion~\cite{landin1964mechanical, steele1978rabbit}. Closure conversion is the process of transforming nested function definitions that have free variables into closures. A closure is a representation of such a function definition, being a pair consisting of a function (via a function pointer or some other reference) and a reference to the \textit{environment} where the function is defined which contains the free variables. Similar to lambda lifting where the compiler hoists function definitions to the global scope, the compiler hoists all nested function definitions to the global scope, but instead, the compiler adds a single additional parameter containing a reference to the environment.
+
+Complications associated with the implementation of first-class functions arise in two distinct forms of the \textit{funarg} (function argument) problem~\cite{sandwell1971proposed,moses1970function}. The upwards funarg problem arises from returning a function from some function call; the downwards funarg problem arises from passing a function as a parameter to a function call. For closures, references to a static environment lead to these exact problems.
+
+The upwards funarg problem arises from the typical usage of stack frames or activation records used to store the local state of all variables in a function call. When a function is returned from, the stack space should become unused, and hence can be \textit{popped}. However, if a function is returned, there may still be references to free variables of the function that were statically allocated on the stack frame where this function was defined.
+
+The downwards problem arises as a dual of the upwards funarg problem. In tail-call elimination, stack frames can be reused if a (recursive) call is made in the tail position. As this is the final call that uses the stack frame, the currently allocated stack frame can be reused as no references to the stack frame will be required again. However, if a function term is defined with references to variables defined on the stack frame, and the tail call makes use of this function term, these variables would be referenced again, invalidly.
+
+One solution to these problems is to make such possibilities impossible. This is done, for example, in the Pascal language, where functions are not allowed to be used as return values, and as such, an implementation of Pascal must only consider the downwards funarg problem. Another solution is to allocate stack frames on the heap, relying on garbage collection or some other form of memory management to clean up the allocated memory when there are no references to local variables. Historically this has been seen as less than favourable due to the overheads commonly associated with heap-based memory allocation, however, there has been doubt cast upon this assumption~\cite{appel1987garbage, appel1996empirical}. 
+
+Instead of using a static reference to the environment for a closure, the upwards and downwards funarg problems can be solved by allocating stack frames on the heap. Heap allocation may then require the use of some system of garbage collection to reclaim the allocated memory once all references to the stack frame are no longer required. Traditionally this has been seen as having the potential for slowdown, however, has been shown to not be an issue~\cite{appel1987garbage,appel1996empirical}. Some implementations of closures employ a hybrid approach for the allocation of stack frames. Through static analysis, the compiler may deduce that a closure would create no upwards or downwards funarg problems. In this case, the compiler may use statically allocated stack frames. Otherwise, the compiler may still use heap-based allocation. 
+
+A further alternative is to copy the values of free variables at the time of the closure's creation into a separate structure. In languages that forbid mutation, such as ML~\cite{milner1997definition}, as the value of a variable remains unchanged there is no semantic issue with copying these variables directly. In a language that allows mutation such as Java, however, mutation may cause two copies of variables to diverge as there is no shared state with the closure environment. For instance, in Java, the solution to this problem is to only allow variables to be free if they are constant (declared as \texttt{final}). 
+
+The representation of the environment of a closure is manifested in two forms: nested and flat. Nested environments are suitable in instances where the environment is a nested set of stack frames. With such a structure, it may be required to traverse this nested structure to find the value associated with a variable. The alternative to a nested environment is a flat environment, which represents all free variables in a vector, requiring a single indirection to attain the value associated with a free variable. Nested environments allow for simpler reuse of environments, possibly saving space over a flat representation. As such, we must consider the trade-offs associated with each form.
+
+Due to the (possible) decrease in execution time, effort has been made to save space with a flat environment representation~\cite{shao2000efficient}, with a formal proof of the safety of these techniques~\cite{paraskevopoulou2019closure}, ensuring good asymptotic behaviour. The ability to share environments can decrease the memory footprint of closure. For instance, if some collection of closures reference the same free variables, the compiler may share the same environment for these closures. Even in the case where some closures may share some of the same free variables, the compiler may choose to create a larger flat environment that contains all free variables, and reference only those necessary for each closure. Other techniques have been developed to further save space with closures when the number of free variables is small or the function reference is known~\cite{keep2012optimizing}.
+
+\section{Type Systems}
+\label{sec:lit-review--types}
+
+A type system is a set of rules that define how objects in a language are types and how these objects can legally be defined under the type system to create well-typed, ultimately aiding the programmer in writing well-formed programs. These well-formed programs are said to be correctly typed.~\cite{pierce2002types} 
+
+Broadly, the type systems employed in various programming languages can be divided into various categories based on certain properties these systems achieve. The type systems of some languages perform these checks at compile time, whereas others perform these checks at runtime. Type systems that perform these checks at compile time are said to be statically type checked; type systems that perform these checks at runtime are said to be dynamically type checked~\cite{pierce2002types}. Static analysis provides stronger guarantees of the correctness of programs before execution, though this can come with a more complex compilation process. Static analysis can further be used to ensure the safety and correctness of compiler transformations and optimisations. The Wybe language utilises a static type system.
+
+Primitive type systems, such as the simply typed lambda calculus ($\lambda^\to$)~\cite{church1940formulation}, provide a basis upon which more rich type systems can be derived and extended. The types described by $\lambda^\to$ are described in \cref{fig:lit-review--simple-grammar}, and describe a type system for the lambda calculus, extending the grammar of the lambda calculus to contain type annotations.
+
+\begin{figure}[ht]
+  \begin{bnf*}
+    \bnfprod{t}
+      {\ooalign{\bnftd{x}\cr\phantom{\bnftd{C}}}\ |\ \lambda \bnftd{x}:\bnfpn{T}\ .\ \bnfpn{t}\ |\ \bnfpn{t}\ \bnfpn{t}} \\
+    \bnfprod{T}
+      {\ooalign{\bnftd{C}\cr\phantom{\bnftd{x}}}\ |\ \bnfpn{T} \to \bnfpn{T}}
+  \end{bnf*}
+  \caption{The grammar of $\lambda^\to$.}
+  \label{fig:lit-review--simple-grammar}
+\end{figure}
+
+The types in $\lambda^\to$ are \textit{Curried}. Types of the form $T \to T$ are function types in the type system. In contrast to functions of differing arity, all functions in $\lambda^\to$ have arity one. Currying provides a simpler function type, leading to simpler theoretical models. Higher arity function types can be \textit{Curried}, transforming a type such as $(X \times Y) \to Z$ into $X \to (Y \to Z)$ through a process called Currying. Curried functions can represent all higher arity functions through this Currying process, or repeated application of it.
+ 
+To check that a program in the lambda calculus is correctly typed, or type checks, a series of rules are used to check that each term is correctly typed within the typing context, $\Gamma$. It is said that $t$ has type $T$ if $t:T \in \Gamma$, or equivalently, $\Gamma\vdash t:T$. The typing rules of $\lambda^\to$ are outlined in \cref{fig:lit-review--simple-typing}.
+
+\begin{figure}[ht]
+  \centering
+  \AxiomC{$x:T\in\Gamma$}
+    \LeftLabel{\textsc{T-Var}}
+  \UnaryInfC{$\Gamma\vdash x:T$}
+  \DisplayProof
+  \begin{tabular*}{\textwidth}{c@{\extracolsep{\fill}} c}
+    \\
+    \AxiomC{$\Gamma,x:T_1\vdash t:T_2$}
+      \LeftLabel{\textsc{T-Abs}}
+    \UnaryInfC{$\Gamma\vdash(\lambda x:T_1\ .\ t):(T_1\to T_2)$}
+    \DisplayProof
+    &
+    \AxiomC{$\Gamma\vdash t_1:T_1\to T_2$}
+    \AxiomC{$\Gamma\vdash t_2:T_2$}
+      \LeftLabel{\textsc{T-App}}
+    \BinaryInfC{$\Gamma\vdash t_1 t_2:T_2$}
+    \DisplayProof 
+  \end{tabular*}
+  \caption[The typing rules of $\lambda^\to$.]{The typing rules of $\lambda^\to$.}
+  \label{fig:lit-review--simple-typing}
+\end{figure}
+ 
+In \cref{fig:lit-review--simple-typing}, these rules are read as natural deductions. The premises (terms above the horizontal rule) are used to prove the conclusions (terms below the vertical rule). Given the set of premises can be proven, the conclusions can be inferred. These rules are applied to a term and recursively to sub-terms to prove (or disprove) a valid typing.
+
+For instance, consider the type checking of the term $f\ (g\ y)\ x$, with the typing context $\Gamma = \set*{f: \mathit{Int} \to \mathit{Float} \to \mathit{Int}, g: \mathit{Int} \to \mathit{Int}, x: \mathit{Int}, y: \mathit{Float}}$. It can be proven that the term has type $\mathit{Int}$ as shown in \cref{fig:lit-review--example-type-checking}.
+
+\begin{figure}[ht]
+  \center
+  \AxiomC{$g: \mathit{Int} \to \mathit{Int}\in\Gamma$}
+    \RightLabel{\textsc{T-Var}}
+  \UnaryInfC{$\Gamma \vdash g : \mathit{Int} \to \mathit{Int}$}
+  \AxiomC{$x : \mathit{Int}\in\Gamma$}
+    \RightLabel{\textsc{T-Var}}
+  \UnaryInfC{$\Gamma \vdash x : \mathit{Int}$}
+    \RightLabel{\textsc{T-App}}
+  \BinaryInfC{$\Gamma \vdash g\ x : \mathit{Int}$}
+    \DisplayProof \\\vspace{5ex}
+  \AxiomC{$f : \mathit{Int} \to \mathit{Float} \to \mathit{Int} \in \Gamma$}
+  \UnaryInfC{$\Gamma \vdash f : \mathit{Int} \to \mathit{Float} \to \mathit{Int}$}
+  \AxiomC{$\Gamma \vdash g\ x : \mathit{Int}$}
+  \BinaryInfC{$\Gamma \vdash f\ (g\ x) : \mathit{Float} \to \mathit{Int}$}
+  \AxiomC{$y : \mathit{Float}\in\Gamma$}
+  \UnaryInfC{$\Gamma \vdash y : \mathit{Float}$}
+  \BinaryInfC{$\Gamma \vdash f\ (g\ x)\ y : \mathit{Int}$}
+  \DisplayProof
+  \caption[Type checking the term $f\ (g\ x)\ y$ in $\lambda^\to$.]{Type checking the term $f\ (g\ x)\ y$ in $\lambda^\to$, proving the typing of $\mathit{Int}$ in the typing context $\Gamma = \set*{f: \mathit{Int} \to \mathit{Float} \to \mathit{Int}, g: \mathit{Int} \to \mathit{Int}, x: \mathit{Int}, y: \mathit{Float}}$.}
+  \label{fig:lit-review--example-type-checking}
+\end{figure}
+
+Some type systems can provide type inference. Type inference allows types of terms within a language to be inferred automatically without annotation in the source code. The simply typed lambda calculus has a type inference algorithm that was also introduced by Church~\cite{church1940formulation}.
+
+Extending the type system of $\lambda^\to$ can be performed in 3 primary ways. These extensions form the lambda cube~\cite{barendregt1991introduction}, which extends the type system of $\lambda^\to$ in various ways. The axes of the cube correspond to generalisations of $\lambda^\to$ with respect to dependent types ($\lambda P$), polymorphism ($\lambda^2$) and type operators ($\lambda\underline{\omega}$).
+
+The $\lambda^2$ type system (also known as System F)~\cite{girard1972interpretation, reynolds1974towards} introduces polymorphism to the type system. Polymorphism promotes types as parameters to other types, allowing universal quantification of such types. Type inference in System F has been shown to be undecidable~\cite{wells1994typability}.
+
+A restriction to System F, known as the Hindley-Milner type system~\cite{hindley1969principal,milner1978theory,damas1984type} restricts where type quantifiers can occur in the type system. Whereas in System F where type qualifications can occur anywhere in a type, type quantifiers exist only at the prenex (top-most position) of types. With this constraint on type quantifiers, the Hindley-Milner type system does have a decidable type inference algorithm, Algorithm W. As such, the Hindley-Milner type system is a popular type system, and was first implemented in the ML family of languages~\cite{milner1997definition}.
+
+Various extensions of the Hindley-Milner type system also exist. One such example is the type class system used as an extension of the Hindley-Milner type system in the Haskell language~\cite{wadler1989make}. Type classes provide constraints on quantified types that allow for a system that is similar to an interface system as seen in object-oriented languages. Other extensions to System F include System F${}_{<:}$, which features subtyping~\cite{cardelli1994extension}.
+
+There has been numerous attempts to add static type systems to logic programming languages, such as Prolog~\cite{mycroft1984polymorphic, lakshman1991typed, nadathur1988overview}. These type systems, however, have failed to gain traction in the Prolog user space due to this being an extension to the Prolog language, or being incompatible with conventional Prolog programs. The Mecrcury language~\cite{somogyi1996execution}, a logic programming language closely related to Prolog, does have a static type system, that is similar to that of the Hindley-Milner type system, though is founded upon many-sorted logic~\cite{dietrich1988polymorphic}.
+
+\section{Intermediate Representations}
+\label{sec:lit-review--inter-reps}
+
+Internally in a compiler, a program is represented in a form known as an intermediate representation. Intermediate representations are designed primarily to represent a program in a representation that allows for analysis of the representation and subsequent transformations. Ideally then an intermediate representation should be designed to facilitate both analysis and transformations, allowing for not only an efficient representation but a flexible and expressive representation~\cite{chow2013intermediate}.
+
+\subsection{Static Single Assignment and Allied Forms}
+\label{ssec:lit-review--ssa}
+
+A common property of intermediate representations is the static single assignment form (SSA form). SSA form was initially developed by Rosen et al.~\cite{rosen1988global} for redundancy elimination in programs, removing redundant instructions that have already been computed or are provably equivalent to some other computation. Prior techniques were limited in the scope of their analyses, and hence transformations, however, with SSA form, these analyses were able to extend the scope of analysis from being confined to a single basic block to a global analysis. 
+
+SSA form was later popularised after an efficient algorithm was devised by Cytron et al.~\cite{cytron1991efficiently}, which can transform other intermediate representations into SSA form. This algorithm utilises \textit{dominance frontiers}~\cite{prosser1959applications, lowry1969object}, which are used to compute which definitions dominate other definitions, allowing for $\phi$-nodes to be placed only where dominance frontiers exist. 
+
+While SSA form is not limited to certain representations, the SSA form property is typically associated with control flow graph-based representations, which represent programs as basic blocks (a list of instructions with no intervening branches) forming the nodes of the control flow graph, and branches or jumps forming the edges connecting the nodes appearing at the end of each basic block. These intermediate representations are naturally suited for imperative programming languages.
+
+\begin{figure}[ht]
+  \centering
+  \begin{subfigure}[b]{0.33\textwidth}
+    \centering 
+\begin{lstlisting}
+int gcd(int a, int b) {
+    while (b != 0) {
+        int t = b;
+        b = a % t;
+        a = t;
+    }
+    return a;
+}
+\end{lstlisting}
+    \caption{The GCD program written in C.}
+  \end{subfigure}%
+  \hspace{1em}
+  \begin{subfigure}[b]{0.57 \textwidth}
+    \centering
+    \begin{tikzpicture}[auto,
+                        shorten >=1pt,
+                        node distance = 6em]
+      \node [box] (header)
+        {header:\\
+          if $(b \neq 0)$ body tail};
+      \node [box, above of=header] at (-1.25,0) (entry)
+        {entry:\\
+          br header};
+      \node [init, left of=entry] (init) {};
+      \node [box, above of=header] at (1.25,0) (tail)
+        {tail:\\
+          return $a$};
+      \node [box] at (-4.25,0) (body)
+        {body:\\
+          $t = b$\\
+          $b = a\ \%\ t$\\
+          $a = t$\\
+          br header};
+      \path [arrow] (init) -- (entry);
+      \path [arrow] let \p0=($(entry.south)-(0.05,0)$), \p1=(header.north) in
+        (\x0,\y0) -- (\x0,\y1);
+      \path [arrow] let \p0=(tail.south), \p1=(header.north) in
+        (\x0,\y1) -- (\x0,\y0);
+      \path [arrow] ($(body.east)+(0,0.25)$) -- ($(header.west)+(0,0.25)$);
+      \path [arrow] ($(header.west)-(0,0.25)$) -- ($(body.east)-(0,0.25)$);
+    \end{tikzpicture}
+    \caption{The GCD program translated into a control flow graph.}
+  \end{subfigure}
+  \caption[A GCD program written in C, with a corresponding control flow graph representation of the program.]{A GCD program written in C, with a corresponding control flow graph representation of the program.~\cite{gange2015horn}}
+  \label{fig:lit-review--gcd-control-flow-graph}
+\end{figure}
+
+SSA form requires each variable to have a single assignment. In transforming some intermediate representation into SSA form, one must distinguish different assignments to variables of the same name. This is performed by transforming each assignment to the same-named variable into an assignment to a numbered version of the variable. 
+
+However, depending on which block was the predecessor of some block, a different version of each variable may have been assigned to. To amend this, $\phi$-nodes are introduced at the beginning of each block. For each variable that may have been assigned a different version in some incoming block, the $\phi$-node associated with this variable assigns a fresh version of this variable, which is then used subsequently in the rest of the block, disambiguating which version of each variable currently exists. These $\phi$-nodes are either assembled into a no-op, or a move instruction if register allocation fails to allocate the versions to the same register, in the final passes of code generation. In essence, $\phi$-nodes are not real instructions, however, are necessary to maintain the restrictions of SSA form in a control flow graph.
+
+SSA form uses $\phi$-nodes to encode the information of \textit{def-use chains}. A def-use chain is a mapping of definitions (variable assignments) to their usages~\cite{aho2007compilers}. As a variable may be assigned numerous times, the definition of a variable may not necessarily reach some use of the variable. Encoding this information with $\phi$-nodes allows for a compact representation of these chains, as each (version of a) variable is assigned exactly once.
+
+Noting that each variable is assigned exactly once in \cref{fig:lit-review--gcd-control-flow-graph}, the control flow graph from \cref{fig:lit-review--gcd-ssa} has been transformed into SSA form. In the \texttt{header} basic block, we have two $\phi$-nodes, one for the $a$ variable, and one for $b$. The $\phi$-node for variable $a$ semantically means that, if execution entered via the \texttt{entry} block then $a_0$ is assigned the value of $a$, else if execution entered via the \texttt{body} block then $a_0$ is assigned the value of $a_1$. This is likewise with the value of $b_0$, assigned to the value of $b$ or $b_1$, respectively. 
+
+\begin{figure}[ht]
+  \centering
+  \begin{tikzpicture}[
+    auto,
+    shorten >=1pt,
+    node distance = 6em
+  ]
+    \node [box] (header)
+      {header:\\
+        $a_0 = \phi(a, a_1)$\\
+        $b_0 = \phi(b, b_1)$\\
+        if $(b_0 \neq 0)$ body tail};
+    \node [box, above of=header] at (-1.25,0) (entry)
+      {entry:\\
+        br header};
+    \node [init, left of=entry] (init) {};
+    \node [box, above of=header] at (1.25,0) (tail)
+      {tail:\\
+        return $a_0$};
+    \node [box] at (-4.25,0) (body)
+      {body:\\
+        $t_1 = b_0$\\
+        $b_1 = a_0\ \%\ t_1$\\
+        $a_1 = t_1$\\
+        br header};
+    \path [arrow] (init) -- (entry);
+    \path [arrow] let \p0=($(entry.south)-(0.05,0)$), \p1=(header.north) in
+      (\x0,\y0) -- (\x0,\y1);
+    \path [arrow] let \p0=(tail.south), \p1=(header.north) in
+      (\x0,\y1) -- (\x0,\y0);
+    \path [arrow] ($(body.east)+(0,0.5)$) -- ($(header.west)+(0,0.5)$);
+    \path [arrow] ($(header.west)-(0,0.5)$) -- ($(body.east)-(0,0.5)$);
+  \end{tikzpicture}
+  \caption[The GCD control flow graph in SSA form.]{The GCD control flow graph in SSA form.~\cite{gange2015horn}}
+  \label{fig:lit-review--gcd-ssa}
+\end{figure}
+ 
+The algorithm that introduces $\phi$-nodes into a control flow graph, however, can also introduce some extraneous $\phi$-nodes into the SSA form control flow graph. To this end, considerable effort has been made to reduce the number of $\phi$-nodes, with a focus on producing a control flow graph with the minimal number of $\phi$-nodes possible~\cite{cooper2001simple, braun2013simple}. Reducing the number of $\phi$-nodes in the control flow graph allows for more efficient analyses and transformations, as $\phi$-nodes bloat the intermediate representation and inhibit certain forms of analysis.
+
+There exists a considerable downside to the use of $\phi$-nodes in a control flow graph, though their use is imperative to the SSA form property. A $\phi$-node introduces a forward bias in the graph, impeding analyses that work backwards against the flow of execution through the graph.
+
+To amend the forward bias introduced via the inclusion of $\phi$-nodes, a dual to the $\phi$-node, $\sigma$-nodes, are introduced~\cite{ananian2001static}, forming static single information form (SSI form). In contrast to $\phi$-nodes, which are introduced at the start of basic blocks, $\sigma$-nodes are introduced at the end of a basic block. Semantically, a $\sigma$-node is used to represent which blocks this block's variables are used in. The introduction of $\sigma$-nodes allows for analysis in a backward direction, which in conjunction with $\phi$-nodes allows for analysis, and hence transformations, in both forward and backward directions.
+
+$\phi$-nodes, however, still have limitations with some forms of analyses, even with the extensions of SSI form. In non-relational analyses, abstract values can propagate through $\phi$-nodes by taking the join of each abstract value for each input variable version. However, in relational analyses, there is no mechanism to propagate information about the relationship between two or more variables, such as knowledge of the equality or ordering of certain variables. A remedy for this would have to reconsider the notion of a $\phi$-node to consider the value of potentially all other variables, to provide the level of analysis required for relational analysis.
+
+Further additions have also been made to SSA form intermediate representations. Gated single assignment form (GSA form)~\cite{ottenstein1990program} introduces $\gamma$-nodes. Similar to $\phi$-nodes, $\gamma$-nodes are intended to merge different versions of the same variable at some merging point in the control flow graph. However, unlike $\phi$-nodes, $\gamma$-nodes require an additional predicate argument. This predicate argument defines which branch execution reached the current block via. As an extension to GSA form, thinned-gated single assignment form (TGSA form) introduces both $\mu$-nodes and $\eta$-nodes, which represent loop headers and loop exits, respectively. In SSA form, $\phi$-nodes can be used in place of both $\gamma$-nodes and $\mu$-nodes, while $\eta$-nodes have no counterpart in SSA form. 
+
+With these additional nodes, GSA and TGSA allow for analyses that incorporate constraints based on the information contained within the predicates of these additional nodes. However, GSA and TGSA do not introduce mechanisms that allow for backwards analyses as was possible in forms such as SSI. These additional nodes also further complicate the intermediate representation.
+
+\subsection{Continuation Passing Style}
+\label{ssec:lit-review--cps}
+
+In contrast to the control flow graph-based intermediate representations typically present in the compilers of imperative languages, functional languages typically utilise a declarative intermediate representation. Continuation passing style (CPS) was first used to encode control flow by Strachey~\cite{strachey2000continuations}, however, was first used as an intermediate representation in a compiler for the Scheme language~\cite{steele1978rabbit}. CPS naturally represents constructs from functional languages, such as closures.
+
+In CPS, control flows via continuations, additional parameters that replace the \texttt{return} instructions with a function that takes the return value. Continuations then use the returned value as a parameter to the rest of the computation. For instance in \cref{fig:gcd-cps}, the parameter \texttt{k} is a continuation, and is used in place of a \texttt{return} instruction to pass the value of \texttt{a} on through the continued computation.
+
+\begin{figure}[ht]
+  \centering
+  \begin{varwidth}{\linewidth}
+    \begin{verbatim}
+gcd(a, b, k) = 
+    if (b == 0) 
+    then k(a) 
+    else let b' = a % b in gcd(b, b', k)
+\end{verbatim}
+  \end{varwidth}
+  \caption{The GCD program in CPS style.}
+  \label{fig:gcd-cps}
+\end{figure}
+
+In contrast to control flow graph-based intermediate representations, there is no need for name management modifications, such as introducing $\phi$-nodes to merge different versions of the same variable. This is due to CPS passing variables to other functions, which themselves serve as the basic blocks of the intermediate representation.
+
+SSA form is equivalent to a subset of CPS which excludes non-local control flow~\cite{kelsey1995correspondence, appel1998ssa}. Non-local control flow, however, is not typically used when employing CPS, nor introduced through conventional program transformations, and as such, the two can be considered equivalent. Due to this, CPS must also suffer from the forward bias that is present in SSA form intermediate representations.
+
+Higher-order programming constructs have been associated with computational overheads, such as the creation and calling of closures. Certain intermediate representations have been designed and implemented with a focus on higher-order specific optimisations, attempting to eliminate some overheads associated with higher-order programming. One such example is the Thorin intermediate representation~\cite{leissa2015graph}, which itself is based on CPS intermediate representations. Thorin makes use of a novel transformation called lambda wrangling. Lambda wrangling is a combination of lambda dropping and lambda lifting and has been demonstrated to subsume various program transformations, including tail-recursion elimination and loop unrolling.
+
+The optimisations made available through the lambda mangling transformation have been shown to provide a speed-up in the resultant program's execution time across a suite of benchmarks. This eliminates most of the overhead associated with closures, matching the performance of equivalent C programs within a small margin. 
+
+\subsection{Logic Programming Form}
+\label{ssec:lit-review--lp-form}
+
+As introduced by Gange et al.~\cite{gange2015horn}, logic programming form (LP form) intermediate representations utilise Horn clauses as an intermediate representation for program analysis and transformation. Horn clauses~\cite{horn1951sentences} are used to represent programs as a series of logical clauses (rules) which are used to make logical deductions to perform the represented computation. Horn clauses are used as a model of computation in many logic programming languages, such as Prolog~\cite{colmerauer1993prolog} and Mercury~\cite{somogyi1996execution}. LP form is considerably less complex than SSA and allied forms. 
+
+Gange also introduces logic programming virtual machine (LPVM) as an implementation of an LP form intermediate representation. LPVM is the primary intermediate representation in the Wybe compiler.
+
+LP form intermediate representations represent a procedure as a goal together with a collection of clauses. For a given goal, the collection of clauses has the property that, for any given input, exactly one clause can ever succeed. 
+
+Clauses also handle name management similarly to how CPS handles name management, lacking an explicit \texttt{return}, and passing variables to other blocks (goals) via parameter passing. However, unlike with CPS, there is no explicit continuation parameter. Instead, LP form intermediate representations allow for variables to be passed in and out (as though returned from) some clause. Variables in LP form also maintain the single assignment property, being assigned once in a given procedure. Thus, LP form languages are considered to be in SSA form. Unlike SSA form control flow graphs, though, LP form intermediate representations do not need explicit $\phi$-nodes in the intermediate representation to handle name management. This also simplifies the recognition of def-use chains in an LP form language, as all assignments will reach every usage of each variable.
+
+Paralleling branches seen in other intermediate representations, LP form intermediate representations utilise guards. The clauses of a given procedure, pairwise, are identical up to some Boolean guard. After this they \textit{fork}, diverging from the guard onwards. Guards are constructed such that all clauses are mutually exclusive and complete, ensuring the property that for any given input a single clause will succeed. This tames the non-determinism seen in typical use cases of Horn clauses (as in Prolog and Mercury), allowing for deterministic evaluation. Unconditional branches are paralleled with terminal procedure calls, and loops are naturally represented through recursion.
+
+Noting that there is redundancy in the intermediate representation up to a common guard, implementations of LP form languages do not represent clauses as a set of clauses but as a tree. This tree is manifested as a list of goals that are common in all clauses, ending in an optional guard. If the guard is present, subsequent goals are present in multiple forks of the tree. This provides a more convenient representation of an LP form intermediate representation, as the analysis of common goals in a clause can be performed together without the requirement to consistently transform numerous clauses.
+
+\begin{figure}[ht]
+  \begin{align*}
+    \mathtt{gcd(a, b; r)\ }
+      & \mathtt{\coloneqq gcd_{header}(a, b, t; r)} \\
+    \mathtt{gcd_{header}(a, b, t; r)\ }
+      & \mathtt{\coloneqq gcd_{guard}(a, b, t; r)} \\
+    \mathtt{gcd_{guard}(a, b, t; r)\ }
+      & \mathtt{\coloneqq b = 0\ \land\ gcd_{body}(a, b, t; r)} \\
+    \mathtt{gcd_{guard}(a, b, t; r)\ }
+      & \mathtt{\coloneqq b \neq 0\ \land\ gcd_{tail}(a, b, t; r)} \\
+    \mathtt{gcd_{body}(a, b, t; r)\ }
+      & \mathtt{\coloneqq t^\prime = b}\ \begin{aligned}[t]
+        & \mathtt{\land\ mod(a, t^\prime; b^\prime)} \\
+        & \mathtt{\land\ a^\prime = t^\prime\ \land\ gcd_{header}(a, b, t; r)}
+      \end{aligned} \\
+    \mathtt{gcd_{tail}(a, b, t; r)\ }
+      & \mathtt{\coloneqq r = a} 
+  \end{align*}
+  \caption[The GCD program in an LP form intermediate representation, as introduced by Gange.]{The GCD program in an LP form intermediate representation, as introduced by Gange.~\cite{gange2015horn}}
+  \label{fig:lit-review--gcd-lpvm}
+\end{figure}
+ 
+In \cref{fig:lit-review--gcd-lpvm} and \cref{fig:lit-review--gcd-lpvm-simplified} the GCD program is translated into an LP form language. Each procedure call is manifested as the procedure name followed by a two comma separated lists of arguments, separated by a semicolon. The left arguments are the call inputs and the right arguments are the call outputs. Procedures are listed on the left, with each clause being represented individually. Note also that the two clauses of $\mathtt{gcd_{guard}}$ in \cref{fig:lit-review--gcd-lpvm} and the clauses of $\mathtt{gcd}$ in \cref{fig:lit-review--gcd-lpvm-simplified} are identical up to the guards, $\mathtt{b = 0}$ and $\mathtt{b \neq 0}$, ensuring that exactly one clause applies for each input.
+
+\begin{figure}[ht]
+  \begin{align*}
+    \mathtt{gcd(a, b; r)\ }&\mathtt{\coloneqq b \neq 0\ \land\ mod(a, b; b^\prime)\ \land\ gcd(b, b^\prime; r)} \\
+    \mathtt{gcd(a, b; r)\ }&\mathtt{\coloneqq b = 0\ \land\ r = a}
+  \end{align*}
+  \caption[The GCD program in an LP form intermediate representation after simplification.]{The GCD program in an LP form intermediate representation after simplification.~\cite{gange2015horn}}
+  \label{fig:lit-review--gcd-lpvm-simplified}
+\end{figure}
+ 
+LP form addresses the aforementioned issues with existing intermediate representations while remaining relatively simple in comparison. As standard with logic programming, clauses are an unordered logical conjunction of numerous goals. This allows for the re-ordering of goals within a clause, however, unconstrained clause re-ordering may destroy the deterministic properties of the intermediate representation. 
+
+This further ensures that backwards and forwards analyses and transformations are natural within the representation, being performed with relative ease. As $\phi$-nodes, and derivatives, are not present in the representation, relational analyses can also be performed without the difficulties apparent with the presence of such nodes.
+
+LP form intermediate languages also better model the machine languages of computers. The ability to represent operations with multiple outputs reflects better the capabilities of CPUs than the restriction of prior intermediate representations. For example, the x86 instruction \texttt{IDIV} produces a quotient and a remainder in separate registers, and numerous other instructions modify flags in addition to other registers. Without the ability to model multiple return values, the full expressiveness of the architecture cannot be abstracted in the intermediate representation.

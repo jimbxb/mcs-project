@@ -1,0 +1,162 @@
+\documentclass[a4paper, 11pt, oneside]{thesis}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+\usepackage[square, numbers, comma, sort&compress]{natbib}
+
+\usepackage{changepage}
+\usepackage{float}
+\usepackage[section]{placeins}
+
+\usepackage{xcolor} 
+\definecolor{rred}{HTML}{e0304e}
+
+\lstset{
+  captionpos=b,
+  frame=tb,
+  comment=[l]{\#},
+  basicstyle=\ttfamily\footnotesize\linespread{1.2}\selectfont,
+  numberstyle=\footnotesize\color{gray},
+  commentstyle=\itshape,
+  showstringspaces=false,
+  keepspaces=true,
+  aboveskip=2em,
+  numbers=left,
+  escapeinside={<@}{@>},
+  moredelim=**[is][\color{rred}]{[@}{@]}
+}
+
+\usepackage[capitalise,noabbrev]{cleveref}
+\crefname{sublstlisting}{Listing}{Listings}
+\Crefname{sublstlisting}{Listing}{Listings}
+\crefdefaultlabelformat{#2{\scshape #1}#3}
+\AtBeginDocument{\DeclareCaptionSubType{lstlisting}}
+
+\usepackage{varwidth}
+\usepackage{verbatim}
+\usepackage{stmaryrd}
+\usepackage{mathtools}
+\DeclarePairedDelimiter\set{\lbrace}{\rbrace}
+\DeclarePairedDelimiter\bbrackets{\llbracket}{\rrbracket}
+\DeclarePairedDelimiter\angles{\langle}{\rangle}
+\DeclarePairedDelimiter\ttangles{\mathtt{<}}{\mathtt{>}}
+\newcommand{\univ}{\ensuremath{\mathbb{U}}}
+
+\usepackage{bussproofs}
+\def\labelSpacing{1em}
+\usepackage[altpo,epsilon]{backnaur}
+\newcommand{\bnfmor}[1]{\bnfmore{\hspace{-1.5em}\ooalign{|\cr\hspace{1.5em}}#1}}
+
+\usepackage{tipa}
+\newcommand{\ipa}[1]{{\usefont{T3}{cmr}{m}{n}\selectfont#1}}
+
+\usepackage{tikz}
+\usetikzlibrary{chains,shapes,arrows,calc,positioning}
+\tikzstyle{arrow} = [draw, -latex']
+\tikzstyle{box} = [rectangle, draw=black!50, align=left, font={\ttfamily}]
+\tikzstyle{init} = [circle, draw=black!50]
+\tikzstyle{circ} = [circle, font={\ttfamily}]
+
+\usepackage{siunitx}
+\usepackage{csvsimple}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
+\usepackage{xstring}
+\pgfplotsset{where/.style 2 args={
+    x filter/.code={
+      \IfStrEq{\thisrow{#1}}{#2}{}{\def\pgfmathresult{}}
+    }
+  }
+}
+
+\graphicspath{{figures/}}
+\def\datapath{data}
+
+\begin{document}
+
+\frontmatter
+
+%TC:ignore
+\university{{The University of Melbourne}}
+\UNIVERSITY{{THE UNIVERSITY OF MELBOURNE}}
+\department{{Department of Computing and Information Systems}}
+\school{{Melbourne School of Engineering and IT}}
+\degree{{Master of Computer Science}}
+\title{{Higher-Order Programming in Wybe}}
+\shortauthors{{James Barnes}}
+\authors{
+  \texorpdfstring{\href{mailto:barnesj2@student.unimelb.edu.au}{\shortauthornames}}{\shortauthornames}\\
+  \small Student Number: 820946
+}
+\supervisor{{Dr.~Peter Schachte}}
+\addresses{\deptname\\\univname}
+\date{June 2022}
+\subject{}
+\keywords{}
+%TC:endignore
+
+%TC:envir lstlisting [option:text] xall
+%TC:ignore
+\wordcount{\input{|"bash ./scripts/fmt-texcount.sh \jobname.tex"}}
+%TC:endignore
+
+\maketitle
+
+\setstretch{1.3}
+
+\fancyhead{}
+\rhead{\thepage}
+\lhead{}
+
+\pagestyle{fancy}
+
+%TC:ignore
+\input{preamble/quote.tex}
+\input{preamble/abstract.tex}
+\input{preamble/declaration.tex}
+\input{preamble/preface.tex}
+\input{preamble/acknowledgements.tex}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\lstlistoflistings
+%TC:endignore
+
+\addtocontents{toc}{\vspace{1em}}
+
+\mainmatter	
+\pagestyle{fancy}
+\setstretch{1.5}
+
+\input{chapters/01-introduction.tex}
+\input{chapters/02-literature-review.tex}
+\input{chapters/03-semantics.tex}
+\input{chapters/04-types.tex}
+\input{chapters/05-resources.tex}
+\input{chapters/06-lpvm-conversion.tex}
+\input{chapters/07-lpvm-optimisations.tex}
+\input{chapters/08-llvm-conversion.tex}
+\input{chapters/09-experiments.tex}
+\input{chapters/10-conclusion.tex}
+
+\addtocontents{toc}{\vspace{2em}}
+
+%TC:ignore
+\appendix
+\input{appendices/data.tex}
+\input{appendices/programs.tex}
+%TC:endignore
+
+\addtocontents{toc}{\vspace{2em}}
+\backmatter
+
+\lhead{\emph{Bibliography}}
+\bibliographystyle{unsrtnat}
+\bibliography{\jobname}
+\label{bibliography}
+
+\end{document}

@@ -1,0 +1,12 @@
+./programs/first/fibs.wybe,Parameters,69808,18720,19
+./programs/first/knapsack.wybe,Parameters,257584,19128,52
+./programs/first/mandlebrot.wybe,Parameters,233576,24064,32
+./programs/first/n_body.wybe,Parameters,395848,24288,71
+./programs/first/sonar_sweep.wybe,Parameters,100720,19024,31
+./programs/first/sort.wybe,Parameters,464832,29480,134
+./programs/first/fibs.wybe,Globals,75128,19088,19
+./programs/first/knapsack.wybe,Globals,268680,19496,52
+./programs/first/mandlebrot.wybe,Globals,223040,24384,32
+./programs/first/n_body.wybe,Globals,385536,24608,71
+./programs/first/sonar_sweep.wybe,Globals,107496,19400,31
+./programs/first/sort.wybe,Globals,463736,29800,134

@@ -1,0 +1,150 @@
+Intro
+
+
+===============================================================================
+
+
+In short, Wybe is a programming language. 
+
+In contrast to imperative languages, such as Python or Java, Wybe is a declarative language (like Haskell or Scheme), yet programming in Wybe feels imperative. 
+
+Wybe has a strong focus on interface integrity, meaning that all effects of a procedure can be gleaned from the interface. Interface integrity also ensures that procedures will be free from unforeseen side-effects, enforcing communication between procedures to occur only from their inputs and outputs.
+
+Wybe also has numerous novel language features, such as multiple inputs, outputs, and in/outputs; a parameter-passing mechanism called resources; and various properties of procedures, such as partial procedures.
+
+In the Wybe compiler, a novel intermediate representation, LPVM, is used to support many of its features. LPVM is currently relatively immature in comparison to the intermediate representations used in established compilers.
+
+
+===============================================================================
+
+
+Heres an example of some Wybe code. "add" is defined with multiple different modes. Each argument to add can be an output, as specified by the preceding ?. In general, we may have more than one output parameter to any given procedure.
+
+Following, we have two calls to add. The first sets uses the first definition of c to the sum of a and b, and the second uses the second definition of add to assign the value of d the difference of c and a.
+
+In Wybe, each overloaded procedure is assumed to be written in reverse. The Wybe compiler exploits this fact, and can remove the second call to add, leaving an assignment of d to the value of b.
+
+
+===============================================================================
+
+
+Another feature of Wybe is resources. Resources are used to pass parameters into and out of procedures without having to pass an argument in the traditional sense. Resourceful calls have a special ! preceding each call, and the compiler threads the resource through the procedure. 
+
+In this example, the resource strings is used to store a collection of strings. We define two procedures that are used to collect strings from a tree of strings by traversing the tree and to add a single string to the collection
+
+If we didnt use resources here, we might write the code like this. Comparing with when we used resources, the code is much less succinct and generally harder for the reader to parse. We have to manually pass the strings resource through all of our calls and ensure that the order of all passed parameters is consistent with what we intend. Also, in the case of trees we have to handle a default case when the tree is empty.
+
+
+===============================================================================
+
+
+As I mentioned previously, the Wybe compiler makes use of a novel intermediate representation, LPVM.
+
+Intermediate representations are used inside a compiler to represent a program, and are manipulated under various analyses and transformation to aid in the compilation process.
+
+Common intermediate representations each have their own problems, including issues with name management, and forward biases that render backwards analyses infeasible. Of course, there are solutions to these problems, but they only add to the complexity of the intermediate representation.
+
+LPVM was introduced to solve these problems, with a shift into logic programming. The clauses that represent a program in LPVM are used to tame the non-determinism seen in typical logic programming languages to provide a well behaved language through which we can compile programs.
+
+
+===============================================================================
+
+
+Heres a simple program written in C that calculates the greatest common divisor of two integers.
+
+In SSA, we might represent the program as such. This graph represents the control flow, with nodes representing a sequence of instructions, and edges representing jumps in the program. We also see phi nodes here, which are used to disambiguate which version of a variable is used, based on which block we entered the header block from.
+
+Below we see this program in LPVM. The two clauses that represent this program are identical up to a guard, here checking if b equals zero. From there, the clauses diverge and either recursively evaluating the loop or "return" the value of a. As you can see, LPVM provides a relatively simpler representation when compared to SSA form.
+
+
+===============================================================================
+
+
+So whats missing?
+
+Wybe currently does not support higher order types, unlike many other modern languages.
+
+Higher order types, which promote procedures to a value type in the type system, allow you to write succinct and general code. This is possible by the ability to abstract functions inside code, as you would with a regular constant. The abstraction of procedures as values allows you to pass procedures into or out of other procedures, which can then be called in the place of a regular procedure.
+
+LPVM also does not support higher order types. If we want to extend Wybe to support higher order types, we must also extend LPVM similarly.
+
+
+===============================================================================
+
+
+This leads us into our research questions. 
+
+Can we extend the existing features of Wybe to support higher order types?
+
+How can we extend the LPVM implementation to support higher order types?
+
+How does the existing Wybe implementation compare to the extended Wybe type system in terms of performance such as runtime and program size?
+
+Accordingly, the goals of the research are a rephrasing of the research questions.
+
+
+===============================================================================
+
+
+Currently there is no formal basis of the Wybe type system. Before we extend the Wybe type system, we can benefit from formalising the current type system. With features such as resources, the Wybe type system is distinct from type systems seen in other languages.
+
+In supporting hgiher order types in Wybe, we want to support Wybe's rich set of features in conjunction with higher order types, and also ensure that Wybe's focus on interface integrity is maintained.
+
+Features that come alongside higher order types, such as closures and anonymous functions, will also be supported.
+
+
+===============================================================================
+
+
+Here is an example comparing first order Wybe code to the proposed higher order extension.
+
+In first order code, we may calculate the sum and product of a list using a for loop. With higher order code, we can condense this into a fold. 
+
+Fold here is used with two anonymous functions using our new proposed syntax for anonymous functions. The inputs and outputs to the anonymous functions are represented by an @ sign.
+
+Of course, behind the scenes we may implement fold with a for loop. You will notice the the procedure, f, is abstracted into an input argument for the procedure. This allows fold to be reused with different input functions, allowing us to write both the sum and product simply by changing the input function and initial value, b naught.
+
+
+===============================================================================
+
+In order for the Wybe compiler to support higher order types, the intermediate representation must be extended to support higher order types.
+
+Again, the type system of LPVM is not formalised. To support our efforts in extending the LPVM type system, we will first formalise the type system by creating a set of typing rules and corresponding proofs that specify how programs in LPVM are legally typed. 
+
+Once we have this formal basis, we can extend and implement the new LPVM type system in order to support higher order types in the Wybe compile.
+
+Theres also the possibility here of performing optimisations to higher order code that cannot currently be done with the existing Wybe compiler, such as different forms of inlining and closure elimination strategies.
+
+
+===============================================================================
+
+
+Ideally, when using higher order types, we want as little performance overhead as possible. This encourages the programmer to use higher order types, instead of resorting to writing more verbose first order code.
+
+In order to compare the performance of Wybe code, we will consider two metrics: execution time and generated code size.
+
+To compare these two metrics, we must create a series of programs in Wybe that use higher order code, and also translate these accordingly into first order code.
+
+Then, we will run these programs through the compiler, and execute each. For each program, the execution time will be averaged over a series of trials to control for effects that are out of our hands, such as slight variations in system load. As the compiler is determinstic, we only have to look at the compiled code size once.
+
+We hypothesise that there will be a slowdown when using higher order code. This is due to the execution of extra code to support these features. 
+
+This performance decrease, however, shouldn't necessarily be seen as a downside, assuming the overhead is relatively small. Higher order types allow for more abstract and general code, that with the cost of a small increase in execution time, may be considered a benefit to the programmer. Afterall, if it is possible to write a faster program in C, why would one ever want to use a language that is considered slower, such as Python.
+
+We also hypothesise that there will be mixed effects for code size. While there will be an increase in generated code when using higher order type, the source code can be significantly smaller. This may have mixed effects based on how well the compiler can optimise higher order code.
+
+
+===============================================================================
+
+
+Here is my general timeline for the proposed research.
+
+Extending LPVM will come before the extensions to Wybe. This will simplify the implementation process, as the Wybe implementation will depend upon the extended LPVM implementation.
+
+The Wybe extension section will likely take the longest due to the extra programming effort required to support features such as resources.
+
+
+===============================================================================
+
+
+Thanks for watching! Any questions?

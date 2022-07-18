@@ -1,0 +1,126 @@
+\clearpage
+
+\def\chaptertitle{Translation to LLVM}
+
+\lhead{\emph{\chaptertitle}}
+
+\chapter{\chaptertitle}
+\label{ch:llvm-conversions}
+
+This chapter details the translation of LPVM into \textit{Low-Level Virtual Machine}~\cite{lattner2004llvm}. We detail the translation of a Wybe module, translating the introduced elements of LPVM into Low-Level Virtual Machine (LLVM).
+
+LLVM is the backend intermediate language used by the Wybe compiler. LLVM has been used as the backend for many widely used compilers, such as the Haskell compiler, GHC~\cite{terei2010llvm}, and the C language family's compiler, Clang. We also leverage LLVM here due to its attractive properties. These properties include the translation into machine code for many target architectures and a many available optimisation passes.
+
+Broadly speaking, the translation from LPVM into LLVM translates arguments into operands, procedures into functions, statements into instructions, and forks into branch instructions. LLVM is an SSA form intermediate representation, and as such requires versions of variables to be merged via a $\phi$-node at the beginning of each basic block. Due to all branching in LPVM representing diverging branches in the computation, no $\phi$-nodes are required to be introduced in all translated LPVM procedures, greatly simplifying the translation. The LLVM compiler may choose to insert $\phi$-nodes throughout its internal optimisations, however.
+
+\section{LLVM Types}
+\label{sec:llvm-types}
+
+Like most intermediate representations, LLVM does not have a native mechanism for multiple return values. In the existing translation into LLVM, the compiler translates the returned values into a single return value, with the return type being dependent on the number of return values. For procedures with no out-flowing return value, the return type of the translated function is \texttt{void}. Procedures that have a single return value also have a single return value of the corresponding LLVM type. 
+
+Where a procedure has multiple output values, the corresponding LLVM function can only have one return value. This value is an aggregate type, called a \textit{tuple type} that contains sequential fields for each return type. The return value of the function is constructed by sequentially inserting each operand for the associated out-flowing value. 
+
+LLVM also supports higher-order types called \textit{function types}. Like functions in LLVM, function types have two components, a return type and a list of parameter types. In Wybe and LPVM, the equivalent type is a procedure type with a collection of modifiers and a list of types and corresponding flows.
+
+The compiler translates a procedure type into a corresponding function type where the input parameters correspond to the in-flowing procedure arguments, and the return type is translated with the outwards flowing arguments as either a \texttt{void} type, a single type, or a structure type for more than one return type.
+
+\section{Closures}
+\label{sec:llvm-closure-proc-refs}
+
+In \cref{ch:lpvm-conversion} during unbranching, the compiler translated each procedure reference into a reference to a closure procedure. These closure procedures have a key property: excluding any parameters that pass free variables, all parameters could not be marked as \textit{unneeded}. In all other procedures, if a parameter is marked as unneeded, it does not get translated into a parameter in the corresponding LLVM function definition. 
+
+As unneeded parameters do not get translated into parameters in the corresponding LLVM function, if non-free closure parameters were marked as uneeded, the interface that defined how arguments are passed between caller and callee would be violated. As the callee cannot know if an argument is needed or not, the callee may pass additional arguments to the caller, causing the callee to receive the arguments in a different order than expected, violating the argument passing interface. Marking all non-free parameters as needed ensures that such a case cannot occur, and if the parameter were not needed, it can simply be ignored.
+
+Translating a closure procedure requires additional preprocessing before the regular procedure translation process can occur. The compiler removes all \textit{free} parameters and replaces them with a single parameter that will be used to pass the closure's \textit{environment}, \texttt{env}. We elect to use a flat environment representation, representing the environment as a vector of free variables, due to the relative efficiency when accessing the free variables and ease of construction.
+
+\begin{figure}[ht]
+  \setcaptiontype{lstlisting}
+  \begin{minipage}[t]{\textwidth}
+    \begin{lstlisting}
+anon(^b:bool, p1:int, p2:int, ?p3:int)<{}, {}>:
+    case b:bool:
+    0:
+        foreign lpvm move(p1:int, ?p3:int) 
+    1:
+        foreign lpvm move(p2:int, ?p3:int) 
+  
+clos(^b:bool, p1:int, p2:int, ?p3:int)<{}, {}>:
+    anon(b:bool, p1:int, p2:int, ?p3:int)
+\end{lstlisting}
+    \subcaption{Before closure preprocessing.}
+  \end{minipage}
+  \begin{minipage}[t]{\textwidth}
+    \begin{lstlisting}
+anon(^b:bool, p1:int, p2:int, ?p3:int)<{}, {}>:
+    case b:bool:
+    0:
+        foreign lpvm move(p1:int, ?p3:int) 
+    1:
+        foreign lpvm move(p2:int, ?p3:int) 
+        
+clos([@env:int,@] p1:int, p2:int, ?p3:int)<{}, {}>:
+    [@foreign lpvm access(env:int, 8:int, 8:int, 0:int, ?b:bool)@]
+    anon(b:bool, p1:int, p2:int, ?p3:int)
+\end{lstlisting}
+    \subcaption{After closure preprocessing.}
+  \end{minipage}
+  \caption[Example closure procedure before and after preprocessing for translation to LLVM.]{Example closure procedure before and after preprocessing for translation to LLVM, continuing from \cref{lst:closure-conversion-close}, with changes highlighted in \textcolor{rred}{red}. The parameters preceded by a \texttt{\^} are closed variables. }
+  \label{lst:lpvm-closure-preprocessing}
+\end{figure}
+
+The body of a closure procedure is also modified. For each needed free parameter, the compiler prepends an LLVM \texttt{access} instruction to the body, which is used to access some data stored at some memory address at a given offset. Each needed free parameter, $p_i$, corresponds to an \texttt{access} instruction that loads index $i * 8$ (accounting for word size) from \texttt{env}. An example of such preprocessing can be found in \cref{lst:lpvm-closure-preprocessing}.
+
+In parallel to the preprocessing step of a closure procedure, the compiler translates procedure references. A procedure reference is a reference to an LPVM procedure along with a list of closed arguments. These closed arguments will correspond directly to a free parameter in the closure procedure.
+
+In translating a procedure reference to procedure $p$ with associated closed arguments, $arg_1, \dots, arg_n$, the compiler constructs an LLVM array of size $n + 1$. This array is filled with a pointer to the procedure along with the values of the arguments. 
+
+If all arguments are constant values, the compiler allocates a global constant for the array and uses a pointer to this global constant as the LLVM operand. Otherwise, the closure is allocated using heap memory large enough to store the array and uses a pointer to this memory as the LLVM operand.
+
+Both the dynamic and static allocation of closures and their environments in this way solve the downwards and upwards funarg problems~\cite{moses1970function,sandwell1971proposed}. Here the compiler is able to reuse some LLVM operands in the case some closure is identical to a previously generated closure, be it heap-allocated or otherwise~\cite{keep2012optimizing}.
+
+\section{Higher-Order Calls}
+\label{sec:llvm-higher-calls}
+
+All valid higher-order calls in LPVM call a value that is either a variable with some higher-order type or a procedure reference with accompanying closed values. The latter case can be excluded in the translation to LLVM due to the optimisation pass outlined in \cref{sec:higher-order-opt}, transforming all higher-order calls to procedure references into first-order calls. Regardless, the translation of such a higher-order call to some procedure reference would simply translate a first-order call to the referenced procedure.
+
+All other higher-order calls will be to some variable. This variable will be a reference to some closure structure that was created via the translation process as outlined in \cref{sec:llvm-closure-proc-refs}. A higher-order call in LLVM requires an operand of a function pointer type along with the arguments to the call. The closure variable contains this function pointer. All closures contain the function pointer as the first value of the array, and as such can be accessed uniformly via the zeroth index of the array. The higher-order call then, additionally, passes the closure variable as the first argument to the call. This passes the environment to the closure, which then allows access to the free variables for the referenced procedure. To support this, the compiler augments all higher-order procedure types with an additional word-sized integer argument as the first parameter type (\texttt{i64} in LLVM on 64-bit machines).
+
+A calling convention dictates how arguments are passed from caller to callee and vice versa. The calling convention decides which arguments are passed via registers and which are passed via the stack. In the case of first-order calls, the compiler uses the \texttt{fastcc} calling convention. This calling convention aggressively attempts to pass all arguments and return values in registers as opposed to on the stack. Due to some architectures passing different variables in different registers and the effects of different calling conventions, the compiler modifies the arguments of higher-order calls to ensure that arguments are passed in the same arguments regardless of the type. 
+
+Before making a call, the compiler passes all arguments cast to a word size integer (\textit{i.e.}, \texttt{i64} in LLVM) through zero extensions (padding with zero bits) and \textit{bitcasts} to ensure that the width of the type matches that of a word-sized integer. A bitcast circumvents LLVM's strict typing, allowing the value to be used as a word-sized value. This same process is performed currently to support generic types, with all arguments that are generic cast to the respective word-sized integer type.
+
+\section{Global Variables}
+\label{sec:llvm-globals}
+
+LLVM, like most imperative intermediate representations, supports global variables. Global variables are assigned a unique name and can be used by referring to this name as you would a regular pointer value. 
+
+Global variables in LLVM have a uniform name and type throughout all instances of their usage in any given LLVM module, as is documented in their declarations. For each global variable, the compiler uses the underlying resource's fully module-qualified name and corresponding LLVM type for the global variable.
+
+LLVM supports various \textit{linkages} for global variables that define how the linker handles the resolution of a global variable's address. The compiler requires the \texttt{external} linkage. This linkage allows for a global variable to be visible in any other module that may use it. Global variables with this linkage are used to resolve external references to this variable.
+
+LLVM optionally allows a global variable to have an initial value. Where a global variable is referenced in some module, but not defined, the compiler does not provide an initial value. Otherwise, if the global variable is defined in the given module, the compiler provides an initial value of \texttt{undef}, which represents some unspecified value. As the initialisation of some resource, and hence some global variable, occurs within the module where it is defined, the compiler does not require a specific value to initialise the global variable.
+
+In LLVM, global variables are referenced by name as a pointer to the underlying global variable. As with any other pointer type in LLVM, the LLVM \texttt{load} and \texttt{store} instructions are used to load the value of and store some value to the global variable respectively. The LLVM \texttt{load} and \texttt{store} instructions parallel these directly, providing a translation of these instructions as shown in \cref{lst:lpvm-llvm-global-instructions}.
+
+\begin{figure}[ht]
+  \setcaptiontype{lstlisting}
+  \centering
+  \begin{minipage}[t]{.56\textwidth}
+    \begin{lstlisting}[mathescape]
+foreign lpvm load(<$global$>:$type$, ?$var$:$type$)
+foreign lpvm store($val$:$type$, <$global$>:$type$)
+\end{lstlisting}
+    \subcaption{LPVM instructions.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{.4\textwidth}
+    \begin{lstlisting}[numbers=none, mathescape]
+%$var$ = load $type$, $type$* @$global$
+store $type$ %$val$, $type$* @$global$
+\end{lstlisting}
+    \subcaption{LLVM instructions.}
+  \end{minipage}
+  \caption{Equivalent LPVM and LLVM instructions to manipulate global variables.}
+  \label{lst:lpvm-llvm-global-instructions}
+\end{figure}
+
+As \textit{phantom} types have a zero-bit representation, there is no equivalent type in LLVM that is valid for a variable. As such all global variables that have a phantom type are excluded, and any \texttt{load} and \texttt{store} instructions that manipulate such global variables are not translated into LLVM instructions. This omission is safe to perform, as \textit{phantom} typed values in Wybe and LPVM exist primarily to enforce the ordering of calls declaratively, because \textit{phantom} types cannot be used to transmit information. As LLVM does not re-order or omit calls that it cannot prove can safely be omitted or re-ordered in the suite of optimisations the LLVM compiler performs, the ordering of calls is still ensured.
